@@ -202,8 +202,9 @@ class FileManager:
         """加载checkpoint数据"""
         checkpoint = Checkpoint()
         
-        # 从单独文件加载processed_keys
-        checkpoint.processed_keys = self.load_processed_keys()
+        # 不再加载processed_keys，因为查询不会被跳过
+        # # 从单独文件加载processed_keys
+        # checkpoint.processed_keys = self.load_processed_keys()
 
         if os.path.exists(self.checkpoint_file):
             try:
