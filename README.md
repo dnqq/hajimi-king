@@ -75,7 +75,7 @@ uv pip install -r pyproject.toml
 mkdir -p data
 
 # 运行程序
-python app/hajimi_king.py
+python -m app.hajimi_king
 ```
 
 ### 5. 本地运行管理 🎮

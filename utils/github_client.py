@@ -133,7 +133,7 @@ class GitHubClient:
                 break
 
             if page < 10:
-                sleep_time = random.uniform(0.5, 1.5)
+                sleep_time = random.uniform(1, 5)
                 logger.info(f"⏳ Processing query: 【{query}】,page {page},item count: {current_page_count},expected total: {expected_total},total count: {total_count},random sleep: {sleep_time:.1f}s")
                 time.sleep(sleep_time)
 

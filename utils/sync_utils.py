@@ -26,10 +26,23 @@ class SyncUtils:
         # GPT Load Balancer 配置
         self.gpt_load_url = Config.GPT_LOAD_URL.rstrip('/') if Config.GPT_LOAD_URL else ""
         self.gpt_load_auth = Config.GPT_LOAD_AUTH
-        # 解析多个group names (逗号分隔)
-        self.gpt_load_group_names = [name.strip() for name in Config.GPT_LOAD_GROUP_NAME.split(',') if name.strip()] if Config.GPT_LOAD_GROUP_NAME else []
         self.gpt_load_sync_enabled = Config.parse_bool(Config.GPT_LOAD_SYNC_ENABLED)
-        self.gpt_load_enabled = bool(self.gpt_load_url and self.gpt_load_auth and self.gpt_load_group_names and self.gpt_load_sync_enabled)
+        self.gpt_load_enabled = bool(self.gpt_load_url and self.gpt_load_auth and self.gpt_load_sync_enabled)
+        
+        # 从AI_PROVIDERS_CONFIG获取group names
+        self.gpt_load_group_names = []
+        self.provider_to_group_map = {}
+        if self.gpt_load_enabled:
+            for provider_config in Config.AI_PROVIDERS_CONFIG:
+                group_name = provider_config.get('gpt_load_group_name', '').strip()
+                if group_name:
+                    self.gpt_load_group_names.append(group_name)
+                    provider_name = provider_config.get('name', '')
+                    if provider_name:
+                        self.provider_to_group_map[provider_name] = group_name
+            
+            # 去重
+            self.gpt_load_group_names = list(set(self.gpt_load_group_names))
 
         # 创建线程池用于异步执行
         self.executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="SyncUtils")
@@ -51,30 +64,33 @@ class SyncUtils:
             logger.info(f"🔗 Gemini Balancer enabled - URL: {self.balancer_url}")
 
         if not self.gpt_load_enabled:
-            logger.warning("🚫 GPT Load Balancer sync disabled - URL, AUTH, GROUP_NAME not configured or sync disabled")
+            logger.warning("🚫 GPT Load Balancer sync disabled - URL, AUTH not configured or sync disabled")
         else:
             logger.info(f"🔗 GPT Load Balancer enabled - URL: {self.gpt_load_url}, Groups: {', '.join(self.gpt_load_group_names)}")
 
         # 启动周期性发送线程
         self._start_batch_sender()
 
-    def add_keys_to_queue(self, keys: List[str]):
+    def add_keys_to_queue(self, keys: List[str], provider_name: str = "", group_name: str = ""):
         """
         将keys同时添加到balancer和GPT load的发送队列
         
         Args:
             keys: API keys列表
+            provider_name: 供应商名称（用于日志记录）
+            group_name: GPT Load Group名称（如果提供，将覆盖默认配置）
         """
         if not keys:
             return
 
         # Acquire lock for checkpoint saving
         while self.saving_checkpoint:
-            logger.info(f"📥 Checkpoint is currently being saved, waiting before adding {len(keys)} key(s) to queues...")
-            time.sleep(0.5)  # Small delay to prevent busy-waiting
+            logger.info(f"📥 Checkpoint is currently being saved, waiting before adding {len(keys)} {provider_name} key(s) to queues...")
+            time.sleep(1)  # Small delay to prevent busy-waiting
 
         self.saving_checkpoint = True  # Acquire the lock
         try:
+            provider_info = f"({provider_name}) " if provider_name else ""
 
             # Gemini Balancer
             if self.balancer_enabled:
@@ -82,19 +98,35 @@ class SyncUtils:
                 checkpoint.wait_send_balancer.update(keys)
                 new_balancer_count = len(checkpoint.wait_send_balancer)
                 added_balancer_count = new_balancer_count - initial_balancer_count
-                logger.info(f"📥 Added {added_balancer_count} key(s) to gemini balancer queue (total: {new_balancer_count})")
+                logger.info(f"📥 Added {added_balancer_count} {provider_info}key(s) to gemini balancer queue (total: {new_balancer_count})")
             else:
-                logger.info(f"🚫 Gemini Balancer disabled, skipping {len(keys)} key(s) for gemini balancer queue")
+                logger.info(f"🚫 Gemini Balancer disabled, skipping {len(keys)} {provider_info}key(s) for gemini balancer queue")
 
-            # GPT Load Balancer
+            # GPT Load Balancer - 现在支持按供应商分组
             if self.gpt_load_enabled:
-                initial_gpt_count = len(checkpoint.wait_send_gpt_load)
-                checkpoint.wait_send_gpt_load.update(keys)
-                new_gpt_count = len(checkpoint.wait_send_gpt_load)
-                added_gpt_count = new_gpt_count - initial_gpt_count
-                logger.info(f"📥 Added {added_gpt_count} key(s) to GPT load balancer queue (total: {new_gpt_count})")
+                # 使用提供的group_name或默认配置
+                target_group_name = group_name if group_name else (self.gpt_load_group_names[0] if self.gpt_load_group_names else "")
+                
+                if target_group_name:
+                    # 初始化分组队列
+                    if not hasattr(checkpoint, 'wait_send_gpt_load_by_group'):
+                        checkpoint.wait_send_gpt_load_by_group = {}
+                    
+                    # 获取或创建该分组的队列
+                    group_queue = checkpoint.wait_send_gpt_load_by_group.get(target_group_name, set())
+                    initial_group_count = len(group_queue)
+                    
+                    # 添加密钥到分组队列
+                    group_queue.update(keys)
+                    checkpoint.wait_send_gpt_load_by_group[target_group_name] = group_queue
+                    
+                    new_group_count = len(group_queue)
+                    added_group_count = new_group_count - initial_group_count
+                    logger.info(f"📥 Added {added_group_count} {provider_info}key(s) to GPT load group '{target_group_name}' queue (total: {new_group_count})")
+                else:
+                    logger.warning(f"⚠️ No group name specified for {provider_info}keys, skipping GPT Load Balancer")
             else:
-                logger.info(f"🚫 GPT Load Balancer disabled, skipping {len(keys)} key(s) for GPT load balancer queue")
+                logger.info(f"🚫 GPT Load Balancer disabled, skipping {len(keys)} {provider_info}key(s)")
 
             file_manager.save_checkpoint(checkpoint)
         finally:
@@ -286,32 +318,36 @@ class SyncUtils:
             logger.error(f"❌ Failed to get group ID for '{group_name}': {str(e)}")
             return None
 
-    def _send_gpt_load_worker(self, keys: List[str]) -> str:
+    def _send_gpt_load_worker(self, keys: List[str], group_name: str = "") -> str:
         """
         实际执行发送到GPT load balancer的工作函数（在后台线程中执行）
         
         Args:
             keys: API keys列表
+            group_name: GPT Load Group名称（如果提供，将只发送到指定group）
             
         Returns:
             str: "ok" if success, otherwise an error code string.
         """
         try:
-            logger.info(f"🔄 Sending {len(keys)} key(s) to GPT load balancer for {len(self.gpt_load_group_names)} group(s)...")
+            # 如果提供了group_name，只发送到指定group；否则发送到所有group
+            target_group_names = [group_name] if group_name else self.gpt_load_group_names
+            
+            logger.info(f"🔄 Sending {len(keys)} key(s) to GPT load balancer for {len(target_group_names)} group(s)...")
 
-            # 遍历所有group names，为每个group发送keys
+            # 遍历目标group names，为每个group发送keys
             all_success = True
             failed_groups = []
             
-            for group_name in self.gpt_load_group_names:
-                logger.info(f"📝 Processing group: {group_name}")
+            for target_group_name in target_group_names:
+                logger.info(f"📝 Processing group: {target_group_name}")
                 
                 # 1. 获取group ID (使用缓存)
-                group_id = self._get_gpt_load_group_id(group_name)
+                group_id = self._get_gpt_load_group_id(target_group_name)
                 
                 if group_id is None:
-                    logger.error(f"Failed to get group ID for '{group_name}'")
-                    failed_groups.append(group_name)
+                    logger.error(f"Failed to get group ID for '{target_group_name}'")
+                    failed_groups.append(target_group_name)
                     all_success = False
                     continue
 
@@ -330,7 +366,7 @@ class SyncUtils:
                     "keys_text": keys_text
                 }
 
-                logger.info(f"📝 Adding {len(keys)} key(s) to group '{group_name}' (ID: {group_id})...")
+                logger.info(f"📝 Adding {len(keys)} key(s) to group '{target_group_name}' (ID: {group_id})...")
 
                 try:
                     # 发送添加keys请求
@@ -342,8 +378,8 @@ class SyncUtils:
                     )
 
                     if add_response.status_code != 200:
-                        logger.error(f"Failed to add keys to group '{group_name}': HTTP {add_response.status_code} - {add_response.text}")
-                        failed_groups.append(group_name)
+                        logger.error(f"Failed to add keys to group '{target_group_name}': HTTP {add_response.status_code} - {add_response.text}")
+                        failed_groups.append(target_group_name)
                         all_success = False
                         continue
 
@@ -351,8 +387,8 @@ class SyncUtils:
                     add_data = add_response.json()
                     
                     if add_data.get('code') != 0:
-                        logger.error(f"Add keys API returned error for group '{group_name}': {add_data.get('message', 'Unknown error')}")
-                        failed_groups.append(group_name)
+                        logger.error(f"Add keys API returned error for group '{target_group_name}': {add_data.get('message', 'Unknown error')}")
+                        failed_groups.append(target_group_name)
                         all_success = False
                         continue
 
@@ -363,21 +399,21 @@ class SyncUtils:
                     total = task_data.get('total', 0)
                     response_group_name = task_data.get('group_name')
 
-                    logger.info(f"✅ Keys addition task started successfully for group '{group_name}':")
+                    logger.info(f"✅ Keys addition task started successfully for group '{target_group_name}':")
                     logger.info(f"   Task Type: {task_type}")
                     logger.info(f"   Is Running: {is_running}")
                     logger.info(f"   Total Keys: {total}")
                     logger.info(f"   Group Name: {response_group_name}")
 
                 except Exception as e:
-                    logger.error(f"❌ Exception when adding keys to group '{group_name}': {str(e)}")
-                    failed_groups.append(group_name)
+                    logger.error(f"❌ Exception when adding keys to group '{target_group_name}': {str(e)}")
+                    failed_groups.append(target_group_name)
                     all_success = False
                     continue
 
             # 根据结果返回状态
             if all_success:
-                logger.info(f"✅ Successfully sent keys to all {len(self.gpt_load_group_names)} group(s)")
+                logger.info(f"✅ Successfully sent keys to all {len(target_group_names)} group(s)")
                 # 保存发送结果日志 - 所有密钥都成功
                 send_result = {key: "ok" for key in keys}
                 file_manager.save_keys_send_result(keys, send_result)
@@ -427,7 +463,7 @@ class SyncUtils:
         """批量发送worker"""
         while self.saving_checkpoint:
             logger.info(f"📥 Checkpoint is currently being saving, waiting before batch sending...")
-            time.sleep(0.5)
+            time.sleep(1)
 
         self.saving_checkpoint = True
         try:
@@ -446,7 +482,7 @@ class SyncUtils:
                 else:
                     logger.error(f"❌ Gemini balancer queue processing failed with code: {result_code}")
 
-            # 发送gpt_load队列
+            # 发送gpt_load队列（旧队列，向后兼容）
             if checkpoint.wait_send_gpt_load and self.gpt_load_enabled:
                 gpt_load_keys = list(checkpoint.wait_send_gpt_load)
                 logger.info(f"🔄 Processing {len(gpt_load_keys)} key(s) from GPT load balancer queue")
@@ -459,6 +495,34 @@ class SyncUtils:
                     logger.info(f"✅ GPT load balancer queue processed successfully, cleared {len(gpt_load_keys)} key(s)")
                 else:
                     logger.error(f"❌ GPT load balancer queue processing failed with code: {result_code}")
+
+            # 发送gpt_load分组队列（新队列）
+            if hasattr(checkpoint, 'wait_send_gpt_load_by_group') and checkpoint.wait_send_gpt_load_by_group and self.gpt_load_enabled:
+                total_group_keys = 0
+                processed_groups = []
+                
+                # 复制分组队列以避免在迭代时修改
+                groups_to_process = list(checkpoint.wait_send_gpt_load_by_group.keys())
+                
+                for group_name in groups_to_process:
+                    group_queue = checkpoint.wait_send_gpt_load_by_group.get(group_name, set())
+                    if group_queue:
+                        gpt_load_keys = list(group_queue)
+                        total_group_keys += len(gpt_load_keys)
+                        logger.info(f"🔄 Processing {len(gpt_load_keys)} key(s) from GPT load group '{group_name}' queue")
+
+                        result_code = self._send_gpt_load_worker(gpt_load_keys, group_name)
+
+                        if result_code == 'ok':
+                            # 清空该分组队列
+                            checkpoint.wait_send_gpt_load_by_group[group_name].clear()
+                            processed_groups.append(group_name)
+                            logger.info(f"✅ GPT load group '{group_name}' queue processed successfully, cleared {len(gpt_load_keys)} key(s)")
+                        else:
+                            logger.error(f"❌ GPT load group '{group_name}' queue processing failed with code: {result_code}")
+                
+                if processed_groups:
+                    logger.info(f"✅ GPT load group queues processed successfully for groups: {', '.join(processed_groups)}, total {total_group_keys} key(s)")
 
             # 保存checkpoint
             file_manager.save_checkpoint(checkpoint)

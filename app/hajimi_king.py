@@ -134,7 +134,7 @@ def process_item(item: Dict[str, Any]) -> tuple:
     Returns:
         tuple: (valid_keys_count, rate_limited_keys_count)
     """
-    delay = random.uniform(1, 4)
+    delay = random.uniform(1, 5)
     file_url = item["html_url"]
 
     # 简化日志输出，只显示关键信息
@@ -147,63 +147,104 @@ def process_item(item: Dict[str, Any]) -> tuple:
         logger.warning(f"⚠️ Failed to fetch content for file: {file_url}")
         return 0, 0
 
-    keys = extract_keys_from_content(content)
+    # 使用基于配置的多供应商密钥提取
+    from app.providers.config_key_extractor import config_key_extractor
+    all_keys = config_key_extractor.extract_all_keys(content)
 
-    # 过滤占位符密钥
-    filtered_keys = []
-    for key in keys:
-        context_index = content.find(key)
-        if context_index != -1:
-            snippet = content[context_index:context_index + 45]
-            if "..." in snippet or "YOUR_" in snippet.upper():
-                continue
-        filtered_keys.append(key)
-    
-    # 去重处理
-    keys = list(set(filtered_keys))
-
-    if not keys:
+    if not all_keys:
         return 0, 0
 
-    logger.info(f"🔑 Found {len(keys)} suspected key(s), validating...")
+    total_valid_keys = 0
+    total_rate_limited_keys = 0
+    all_checked_keys = []  # 收集所有已经检查过的密钥
 
-    valid_keys = []
-    rate_limited_keys = []
+    # 处理每个供应商的密钥
+    for provider_name, keys in all_keys.items():
+        if not keys:
+            continue
 
-    # 验证每个密钥
-    for key in keys:
-        validation_result = validate_gemini_key(key)
-        if validation_result and "ok" in validation_result:
-            valid_keys.append(key)
-            logger.info(f"✅ VALID: {key}")
-        elif validation_result == "rate_limited":
-            rate_limited_keys.append(key)
-            logger.warning(f"⚠️ RATE LIMITED: {key}, check result: {validation_result}")
-        else:
-            logger.info(f"❌ INVALID: {key}, check result: {validation_result}")
+        logger.info(f"🔑 Found {len(keys)} {provider_name} suspected key(s), validating...")
 
-    # 保存结果
-    if valid_keys:
-        file_manager.save_valid_keys(repo_name, file_path, file_url, valid_keys)
-        logger.info(f"💾 Saved {len(valid_keys)} valid key(s)")
-        # 添加到同步队列（不阻塞主流程）
+        # 过滤占位符密钥
+        filtered_keys = []
+        for key in keys:
+            context_index = content.find(key)
+            if context_index != -1:
+                snippet = content[context_index:context_index + 45]
+                if "..." in snippet or "YOUR_" in snippet.upper():
+                    continue
+            filtered_keys.append(key)
+        
+        # 去重处理
+        keys = list(set(filtered_keys))
+
+        if not keys:
+            continue
+
+        valid_keys = []
+        rate_limited_keys = []
+
+        # 获取供应商实例并验证密钥
         try:
-            # 添加到两个队列
-            sync_utils.add_keys_to_queue(valid_keys)
-            logger.info(f"📥 Added {len(valid_keys)} key(s) to sync queues")
+            from app.providers.config_based_factory import ConfigBasedAIProviderFactory
+            provider = ConfigBasedAIProviderFactory.get_provider_by_name(provider_name)
+            
+            if not provider:
+                logger.warning(f"❌ Provider {provider_name} not found in configuration")
+                continue
+            
+            for key in keys:
+                validation_result = provider.validate_key(key)
+                if validation_result and "ok" in validation_result:
+                    valid_keys.append(key)
+                    logger.info(f"✅ VALID {provider_name.upper()}: {key}")
+                elif "rate_limited" in validation_result:
+                    rate_limited_keys.append(key)
+                    logger.warning(f"⚠️ RATE LIMITED {provider_name.upper()}: {key}, result: {validation_result}")
+                else:
+                    logger.info(f"❌ INVALID {provider_name.upper()}: {key}, result: {validation_result}")
+                    # 预设供应商验证失败，尝试AI分析提取URL信息
+                    logger.info(f"🤖 密钥 {key[:10]}... 预设供应商验证无效，尝试AI提取URL信息...")
+                    
+                    # 检查是否应该跳过AI分析（Gemini或OpenRouter格式的密钥）
+                    if _should_skip_ai_analysis(key):
+                        logger.info(f"⏭️ 跳过AI分析：密钥 {key[:10]}... 符合已知格式（Gemini或OpenRouter）")
+                    else:
+                        _analyze_and_validate_key_with_ai(content, repo_name, file_path, file_url, key)
+                
+                # 记录所有检查过的密钥
+                all_checked_keys.append(key)
+                    
         except Exception as e:
-            logger.error(f"📥 Error adding keys to sync queues: {e}")
+            logger.error(f"❌ Error validating {provider_name} keys: {e}")
+            continue
 
-    if rate_limited_keys:
-        file_manager.save_rate_limited_keys(repo_name, file_path, file_url, rate_limited_keys)
-        logger.info(f"💾 Saved {len(rate_limited_keys)} rate limited key(s)")
+        # 保存结果
+        if valid_keys:
+            file_manager.save_valid_keys(repo_name, file_path, file_url, valid_keys, provider_name)
+            logger.info(f"💾 Saved {len(valid_keys)} valid {provider_name} key(s)")
+            # 添加到同步队列（不阻塞主流程）
+            try:
+                # 获取供应商的GPT Load Group名称
+                group_name = config_key_extractor.get_gpt_load_group_name(provider_name)
+                sync_utils.add_keys_to_queue(valid_keys, provider_name, group_name)
+                logger.info(f"📥 Added {len(valid_keys)} {provider_name} key(s) to sync queues (Group: {group_name})")
+            except Exception as e:
+                logger.error(f"📥 Error adding {provider_name} keys to sync queues: {e}")
 
-    return len(valid_keys), len(rate_limited_keys)
+        if rate_limited_keys:
+            file_manager.save_rate_limited_keys(repo_name, file_path, file_url, rate_limited_keys, provider_name)
+            logger.info(f"💾 Saved {len(rate_limited_keys)} rate limited {provider_name} key(s)")
+
+        total_valid_keys += len(valid_keys)
+        total_rate_limited_keys += len(rate_limited_keys)
+
+    return total_valid_keys, total_rate_limited_keys
 
 
 def validate_gemini_key(api_key: str) -> Union[bool, str]:
     try:
-        time.sleep(random.uniform(0.5, 1.5))
+        time.sleep(random.uniform(1, 5))
 
         # 获取随机代理配置
         proxy_config = Config.get_random_proxy()
@@ -290,7 +331,8 @@ def main():
         logger.info(f"💾 Checkpoint found - Incremental scan mode")
         logger.info(f"   Last scan: {checkpoint.last_scan_time}")
         logger.info(f"   Scanned files: {len(checkpoint.scanned_shas)}")
-        logger.info(f"   Processed queries: {len(checkpoint.processed_queries)}")
+        # 不再显示已处理查询的数量，因为查询不会被跳过
+        # logger.info(f"   Processed queries: {len(checkpoint.processed_queries)}")
     else:
         logger.info(f"💾 No checkpoint - Full scan mode")
 
@@ -313,9 +355,10 @@ def main():
 
             for i, q in enumerate(search_queries, 1):
                 normalized_q = normalize_query(q)
-                if normalized_q in checkpoint.processed_queries:
-                    logger.info(f"🔍 Skipping already processed query: [{q}],index:#{i}")
-                    continue
+                # 不再跳过已处理的查询，以支持持续运行和挖掘新的key
+                # if normalized_q in checkpoint.processed_queries:
+                #     logger.info(f"🔍 Skipping already processed query: [{q}],index:#{i}")
+                #     continue
 
                 res = github_utils.search_for_keys(q)
 
@@ -369,7 +412,8 @@ def main():
                 else:
                     logger.warning(f"❌ Query {i}/{len(search_queries)} failed")
 
-                checkpoint.add_processed_query(normalized_q)
+                # 不再将查询添加到已处理列表中
+                # checkpoint.add_processed_query(normalized_q)
                 query_count += 1
 
                 checkpoint.update_scan_time()
@@ -398,6 +442,70 @@ def main():
             traceback.print_exc()
             logger.info("🔄 Continuing...")
             continue
+
+def _analyze_and_validate_key_with_ai(content: str, repo_name: str, file_path: str, file_url: str, key: str) -> None:
+    """
+    使用AI分析文件内容，提取特定密钥的URL和模型信息，并进行验证
+    
+    Args:
+        content: 文件内容
+        repo_name: 仓库名称
+        file_path: 文件路径
+        file_url: 文件URL
+        key: 需要分析的API密钥
+    """
+    try:
+        # 导入AI分析器
+        from utils.ai_analyzer import AIAnalyzer
+        ai_analyzer = AIAnalyzer()
+        
+        if not ai_analyzer.enabled:
+            logger.info("🤖 AI分析功能未启用，跳过")
+            return
+            
+        # 使用AI提取API信息
+        api_info = ai_analyzer.extract_api_info(content, file_path, key)
+        
+        if not api_info or not api_info.get('base_url'):
+            logger.info(f"🤖 AI无法提取密钥 {key[:10]}... 的URL信息")
+            return
+            
+        base_url = api_info['base_url']
+        model = api_info.get('model', 'gpt-3.5-turbo')
+        service_type = api_info.get('service_type', 'unknown')
+        
+        logger.info(f"🤖 AI提取到信息: URL={base_url}, Model={model}, Service={service_type}")
+        
+        # 使用OpenAI格式验证密钥
+        is_valid, validation_result = ai_analyzer.validate_key_with_openai_format(key, base_url, model)
+        
+        if is_valid:
+            logger.info(f"✅ AI验证有效: {key[:10]}... (URL: {base_url})")
+            # 保存AI分析结果
+            from utils.file_manager import file_manager
+            file_manager.save_ai_valid_key(repo_name, file_path, file_url, key, base_url, model, service_type)
+        else:
+            logger.info(f"❌ AI验证无效: {key[:10]}... - {validation_result}")
+            
+    except Exception as e:
+        logger.error(f"❌ AI分析处理失败: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def _should_skip_ai_analysis(key: str) -> bool:
+    """
+    检查是否应该跳过AI分析
+    
+    Args:
+        key: API密钥
+        
+    Returns:
+        bool: 如果密钥符合配置中的格式，返回True
+    """
+    # 使用基于配置的密钥提取器检查是否应该跳过AI分析
+    from app.providers.key_extractor import KeyExtractor
+    return KeyExtractor.should_skip_ai_analysis_by_config(key)
 
 
 if __name__ == "__main__":

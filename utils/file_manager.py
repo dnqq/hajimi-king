@@ -16,25 +16,39 @@ class Checkpoint:
     processed_queries: Set[str] = field(default_factory=set)
     wait_send_balancer: Set[str] = field(default_factory=set)
     wait_send_gpt_load: Set[str] = field(default_factory=set)
+    wait_send_gpt_load_by_group: Dict[str, Set[str]] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式，但不包含scanned_shas（单独存储）"""
+        # 转换分组队列为可序列化格式
+        gpt_load_by_group_serializable = {}
+        for group_name, key_set in self.wait_send_gpt_load_by_group.items():
+            gpt_load_by_group_serializable[group_name] = list(key_set)
+        
         return {
             "last_scan_time": self.last_scan_time,
             "processed_queries": list(self.processed_queries),
             "wait_send_balancer": list(self.wait_send_balancer),
-            "wait_send_gpt_load": list(self.wait_send_gpt_load)
+            "wait_send_gpt_load": list(self.wait_send_gpt_load),
+            "wait_send_gpt_load_by_group": gpt_load_by_group_serializable
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Checkpoint':
         """从字典创建Checkpoint对象，scanned_shas需要单独加载"""
+        # 转换分组队列回set格式
+        gpt_load_by_group = {}
+        group_data = data.get("wait_send_gpt_load_by_group", {})
+        for group_name, key_list in group_data.items():
+            gpt_load_by_group[group_name] = set(key_list)
+        
         return cls(
             last_scan_time=data.get("last_scan_time"),
             scanned_shas=set(),  # 将通过FileManager单独加载
             processed_queries=set(data.get("processed_queries", [])),
             wait_send_balancer=set(data.get("wait_send_balancer", [])),
-            wait_send_gpt_load=set(data.get("wait_send_gpt_load", []))
+            wait_send_gpt_load=set(data.get("wait_send_gpt_load", [])),
+            wait_send_gpt_load_by_group=gpt_load_by_group
         )
 
     def add_scanned_sha(self, sha: str) -> None:
@@ -42,8 +56,10 @@ class Checkpoint:
             self.scanned_shas.add(sha)
 
     def add_processed_query(self, query: str) -> None:
-        if query:
-            self.processed_queries.add(query)
+        # 不再向processed_queries集合添加查询，以支持持续运行和挖掘新的key
+        # if query:
+        #     self.processed_queries.add(query)
+        pass
 
     def update_scan_time(self) -> None:
         self.last_scan_time = datetime.utcnow().isoformat()
@@ -65,6 +81,7 @@ class FileManager:
         self.data_dir = data_dir
         self.checkpoint_file = os.path.join(data_dir, "checkpoint.json")
         self.scanned_shas_file = os.path.join(data_dir, Config.SCANNED_SHAS_FILE)
+        self.processed_keys_file = os.path.join(data_dir, "processed_keys.txt")
 
         # 2. 动态文件名
         self._detail_log_filename: Optional[str] = None
@@ -117,6 +134,16 @@ class FileManager:
         self._keys_send_detail_filename = os.path.join(
             self.data_dir,
             f"{Config.KEYS_SEND_DETAIL_PREFIX}{start_time.strftime('%Y%m%d')}.log"
+        )
+
+        # AI分析结果文件
+        self._ai_analysis_filename = os.path.join(
+            self.data_dir,
+            f"ai_analysis_{start_time.strftime('%Y%m%d')}.log"
+        )
+        self._ai_valid_keys_filename = os.path.join(
+            self.data_dir,
+            f"ai_valid_keys_{start_time.strftime('%Y%m%d')}.txt"
         )
 
         # 创建文件（如果不存在），先确保父目录存在
@@ -174,6 +201,9 @@ class FileManager:
     def load_checkpoint(self) -> Checkpoint:
         """加载checkpoint数据"""
         checkpoint = Checkpoint()
+        
+        # 从单独文件加载processed_keys
+        checkpoint.processed_keys = self.load_processed_keys()
 
         if os.path.exists(self.checkpoint_file):
             try:
@@ -260,7 +290,7 @@ class FileManager:
         except Exception as e:
             logger.error(f"Failed to save scanned SHAs to {self.scanned_shas_file}: {e}")
 
-    def save_valid_keys(self, repo_name: str, file_path: str, file_url: str, valid_keys: List[str]) -> None:
+    def save_valid_keys(self, repo_name: str, file_path: str, file_url: str, valid_keys: List[str], provider_name: str = "") -> None:
         """保存有效的API密钥"""
         if not valid_keys or not self._detail_log_filename:
             return
@@ -279,7 +309,7 @@ class FileManager:
                 for key in valid_keys:
                     f.write(f"{key}\n")
 
-    def save_rate_limited_keys(self, repo_name: str, file_path: str, file_url: str, rate_limited_keys: List[str]) -> None:
+    def save_rate_limited_keys(self, repo_name: str, file_path: str, file_url: str, rate_limited_keys: List[str], provider_name: str = "") -> None:
         """保存被限流的API密钥"""
         if not rate_limited_keys:
             return
@@ -430,6 +460,14 @@ class FileManager:
     @property
     def keys_send_detail_filename(self) -> Optional[str]:
         return self._keys_send_detail_filename
+
+    @property
+    def ai_analysis_filename(self) -> Optional[str]:
+        return self._ai_analysis_filename
+
+    @property
+    def ai_valid_keys_filename(self) -> Optional[str]:
+        return self._ai_valid_keys_filename
 
     # 向后兼容的属性名
     @property

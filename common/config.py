@@ -36,6 +36,54 @@ class Config:
     GPT_LOAD_URL = os.getenv('GPT_LOAD_URL', '')
     GPT_LOAD_AUTH = os.getenv('GPT_LOAD_AUTH', '')
     GPT_LOAD_GROUP_NAME = os.getenv('GPT_LOAD_GROUP_NAME', '')
+    
+    # 多供应商配置 (JSON格式)
+    AI_PROVIDERS_CONFIG_JSON = os.getenv("AI_PROVIDERS_CONFIG", "[]")
+    DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "gemini")
+    
+    # 解析供应商配置
+    try:
+        import json
+        AI_PROVIDERS_CONFIG = json.loads(AI_PROVIDERS_CONFIG_JSON)
+        if not isinstance(AI_PROVIDERS_CONFIG, list):
+            AI_PROVIDERS_CONFIG = []
+    except (json.JSONDecodeError, TypeError):
+        AI_PROVIDERS_CONFIG = []
+    
+    # 如果没有配置供应商，使用默认配置
+    if not AI_PROVIDERS_CONFIG:
+        AI_PROVIDERS_CONFIG = [
+            {
+                "name": "gemini",
+                "type": "gemini",
+                "check_model": "gemini-2.5-flash",
+                "api_endpoint": "generativelanguage.googleapis.com",
+                "key_patterns": ["AIzaSy[A-Za-z0-9\\\\-_]{33}"],
+                "gpt_load_group_name": os.getenv("GEMINI_GPT_LOAD_GROUP_NAME", ""),
+                "skip_ai_analysis": False
+            },
+            {
+                "name": "openai",
+                "type": "openai_style", 
+                "check_model": "gpt-3.5-turbo",
+                "api_base_url": "https://api.openai.com/v1",
+                "key_patterns": ["sk-[A-Za-z0-9\\\\-_]{20,100}"],
+                "gpt_load_group_name": os.getenv("OPENAI_GPT_LOAD_GROUP_NAME", ""),
+                "skip_ai_analysis": False
+            },
+            {
+                "name": "openrouter",
+                "type": "openai_style",
+                "check_model": "openai/gpt-3.5-turbo",
+                "api_base_url": "https://openrouter.ai/api/v1",
+                "key_patterns": ["[A-Za-z0-9\\\\-_]{40,100}"],
+                "gpt_load_group_name": os.getenv("OPENROUTER_GPT_LOAD_GROUP_NAME", ""),
+                "skip_ai_analysis": False
+            }
+        ]
+    
+    # 获取启用的供应商名称列表
+    AI_PROVIDERS = [provider.get('name') for provider in AI_PROVIDERS_CONFIG]
 
     # 文件前缀配置
     VALID_KEY_PREFIX = os.getenv("VALID_KEY_PREFIX", "keys/keys_valid_")
@@ -61,6 +109,12 @@ class Config:
     # 文件路径黑名单配置
     FILE_PATH_BLACKLIST_STR = os.getenv("FILE_PATH_BLACKLIST", "readme,docs,doc/,.md,sample,tutorial")
     FILE_PATH_BLACKLIST = [token.strip().lower() for token in FILE_PATH_BLACKLIST_STR.split(',') if token.strip()]
+
+    # AI分析配置
+    AI_ANALYSIS_ENABLED = os.getenv("AI_ANALYSIS_ENABLED", "false").lower() in ("true", "1", "yes", "on")
+    AI_ANALYSIS_URL = os.getenv("AI_ANALYSIS_URL", "")
+    AI_ANALYSIS_MODEL = os.getenv("AI_ANALYSIS_MODEL", "gpt-4o-mini")
+    AI_ANALYSIS_API_KEY = os.getenv("AI_ANALYSIS_API_KEY", "")
 
     @classmethod
     def parse_bool(cls, value: str) -> bool:
@@ -145,6 +199,18 @@ class Config:
         else:
             logger.info("ℹ️ GPT Load Balancer: Not configured (Load Balancer功能将被禁用)")
 
+        # 检查AI供应商配置
+        logger.info(f"🤖 Configured AI providers: {len(cls.AI_PROVIDERS_CONFIG)}")
+        for provider in cls.AI_PROVIDERS_CONFIG:
+            provider_name = provider.get('name', 'unknown')
+            provider_type = provider.get('type', 'unknown')
+            group_name = provider.get('gpt_load_group_name', 'not configured')
+            skip_ai = provider.get('skip_ai_analysis', False)
+            logger.info(f"   - {provider_name} ({provider_type}): GPT Load Group = {group_name}, Skip AI = {skip_ai}")
+        
+        logger.info(f"🔧 Default provider: {cls.DEFAULT_PROVIDER}")
+        logger.info(f"🔧 Enabled providers: {', '.join(cls.AI_PROVIDERS)}")
+
         if errors:
             logger.error("❌ Configuration check failed:")
             logger.info("Please check your .env file and configuration.")
@@ -165,6 +231,9 @@ logger.info(f"GPT_LOAD_SYNC_ENABLED: {Config.parse_bool(Config.GPT_LOAD_SYNC_ENA
 logger.info(f"GPT_LOAD_URL: {Config.GPT_LOAD_URL or 'Not configured'}")
 logger.info(f"GPT_LOAD_AUTH: {'Configured' if Config.GPT_LOAD_AUTH else 'Not configured'}")
 logger.info(f"GPT_LOAD_GROUP_NAME: {Config.GPT_LOAD_GROUP_NAME or 'Not configured'}")
+logger.info(f"AI_PROVIDERS_CONFIG: {len(Config.AI_PROVIDERS_CONFIG)} providers configured")
+logger.info(f"DEFAULT_PROVIDER: {Config.DEFAULT_PROVIDER}")
+logger.info(f"ENABLED_PROVIDERS: {', '.join(Config.AI_PROVIDERS)}")
 logger.info(f"VALID_KEY_PREFIX: {Config.VALID_KEY_PREFIX}")
 logger.info(f"RATE_LIMITED_KEY_PREFIX: {Config.RATE_LIMITED_KEY_PREFIX}")
 logger.info(f"KEYS_SEND_PREFIX: {Config.KEYS_SEND_PREFIX}")
