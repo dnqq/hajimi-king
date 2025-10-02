@@ -458,10 +458,24 @@ def main():
 
             logger.info(f"🏁 Loop #{loop_count} complete - Processed {loop_processed_files} files | Total valid: {total_keys_found} | Total rate limited: {total_rate_limited_keys}")
 
-            # 休眠指定分钟数（从配置读取）
-            sleep_minutes = int(os.getenv("SCAN_INTERVAL_MINUTES", "30"))
-            logger.info(f"💤 Sleeping for {sleep_minutes} minutes...")
-            time.sleep(sleep_minutes * 60)
+            # 计算下次执行时间（每天定时执行一次）
+            from datetime import datetime, timedelta
+            now = datetime.now()
+
+            # 从环境变量读取执行小时（默认凌晨3点）
+            run_hour = int(os.getenv("DAILY_RUN_HOUR", "3"))
+
+            # 计算下次执行时间
+            next_run = now.replace(hour=run_hour, minute=0, second=0, microsecond=0)
+            if next_run <= now:
+                # 如果今天的时间已过，设置为明天
+                next_run += timedelta(days=1)
+
+            sleep_seconds = (next_run - now).total_seconds()
+            sleep_hours = sleep_seconds / 3600
+
+            logger.info(f"💤 Next run at: {next_run.strftime('%Y-%m-%d %H:%M:%S')} (in {sleep_hours:.1f} hours)")
+            time.sleep(sleep_seconds)
 
         except KeyboardInterrupt:
             logger.info("⛔ Interrupted by user")
