@@ -2,6 +2,7 @@
 Hajimi King - 数据库版本
 使用 SQLite 数据库替代文本文件
 """
+import os
 import random
 import sys
 import time
