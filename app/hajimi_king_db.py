@@ -294,28 +294,82 @@ def main():
     # 1) 自动生成查询（基于供应商的 key_patterns）
     auto_queries = []
     providers = config.AI_PROVIDERS_CONFIG
-    languages = ['python', 'javascript', 'go', 'java', 'typescript']
+
+    # 基础语言列表
+    languages = ['python', 'javascript', 'typescript', 'go', 'java', 'kotlin', 'php', 'ruby', 'rust', 'csharp', 'c++', 'swift', 'dart', 'html', 'css']
+
+    # 配置文件路径切片
+    config_paths = ['/', 'config', 'src', 'app', 'server', 'api', 'lib', 'tests', 'db', 'scripts']
 
     for provider in providers:
         patterns = provider.get('key_patterns', [])
+        provider_name = provider.get('name', '').upper()
+        api_endpoint = provider.get('api_endpoint', '')
+
         for pattern in patterns:
-            # 从正则提取关键前缀（如 AIzaSy, sk-proj）
+            # 从正则提取关键前缀（如 AIzaSy, sk-）
+            import re
             if pattern.startswith('AIzaSy'):
                 prefix = 'AIzaSy'
             elif pattern.startswith('sk-'):
                 prefix = 'sk-'
+            elif pattern.startswith('csk-'):
+                prefix = 'csk-'
             else:
-                # 尝试提取前6个非正则字符
-                import re
+                # 尝试提取前3-10个非正则字符
                 match = re.match(r'^([A-Za-z0-9\-_]{3,10})', pattern)
                 if match:
                     prefix = match.group(1)
                 else:
                     continue
 
-            # 为每个语言生成查询
+            # === 1. 高精度查询（无需切片）===
+            auto_queries.append(f'filename:"postman_collection.json" "{prefix}"')
+            auto_queries.append(f'extension:tfstate "{prefix}"')
+            auto_queries.append(f'extension:tfplan "{prefix}"')
+            auto_queries.append(f'"{prefix}" in:commit')
+
+            # === 2. 变量名模式（按语言切片）===
             for lang in languages:
-                auto_queries.append(f'{prefix} language:{lang}')
+                # 标准变量名
+                auto_queries.append(f'"{provider_name}_API_KEY" = "{prefix}" language:{lang}')
+                auto_queries.append(f'"{provider_name}_API_KEY": "{prefix}" language:{lang}')
+
+                # 注释模式
+                auto_queries.append(f'"// {prefix}" language:{lang}')
+                auto_queries.append(f'"# {prefix}" language:{lang}')
+                auto_queries.append(f'TODO "{prefix}" language:{lang}')
+                auto_queries.append(f'FIXME "{prefix}" language:{lang}')
+
+                # API域名关联（如果有）
+                if api_endpoint:
+                    auto_queries.append(f'"{api_endpoint}" "{prefix}" language:{lang}')
+
+            # === 3. 配置文件模式（按路径切片）===
+            env_files = ['.env', '.env.local', '.env.dev', '.env.development', '.env.prod', '.env.production', '.env.staging']
+            for env_file in env_files:
+                for path in config_paths:
+                    auto_queries.append(f'filename:{env_file} "{prefix}" path:{path}')
+
+            # YAML/JSON/TOML 配置文件
+            for ext in ['yaml', 'yml', 'toml']:
+                for path in config_paths:
+                    auto_queries.append(f'extension:{ext} "{prefix}" path:{path}')
+
+            # === 4. 特定文件类型（最小切片）===
+            auto_queries.append(f'extension:ipynb "{prefix}" key')
+            auto_queries.append(f'extension:log "{prefix}" error')
+
+            # === 5. 注释和文档模式 ===
+            auto_queries.append(f'extension:md "{prefix}"')
+            auto_queries.append(f'"<!-- {prefix}"')
+            auto_queries.append(f'"/* {prefix}"')
+
+            # === 6. 非标准配置文件 ===
+            auto_queries.append(f'filename:config.yml "{prefix}"')
+            auto_queries.append(f'filename:settings.py "{prefix}"')
+            auto_queries.append(f'filename:secret "{prefix}"')
+            auto_queries.append(f'path:.git "{prefix}"')
 
     # 2) 加载自定义高级查询（queries.txt）
     custom_queries = file_manager.get_search_queries()
