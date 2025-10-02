@@ -459,7 +459,6 @@ def main():
             logger.info(f"🏁 Loop #{loop_count} complete - Processed {loop_processed_files} files | Total valid: {total_keys_found} | Total rate limited: {total_rate_limited_keys}")
 
             # 计算下次执行时间（每天定时执行一次）
-            from datetime import datetime, timedelta
             now = datetime.now()
 
             # 从环境变量读取执行小时（默认凌晨3点）

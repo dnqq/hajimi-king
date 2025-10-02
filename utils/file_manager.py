@@ -47,7 +47,7 @@ class FileManager:
         queries_path = os.path.join(self.data_dir, queries_file)
 
         if not os.path.exists(queries_path):
-            logger.warning(f"⚠️ Queries file not found: {queries_path}")
+            logger.debug(f"Queries file not found: {queries_path} (using auto-generated queries)")
             return []
 
         try:
