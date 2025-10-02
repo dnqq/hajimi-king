@@ -18,14 +18,20 @@ def init_database():
     from utils.db_manager import DBManager
 
     db_path = os.path.join(config.DATA_PATH, "hajimi_king.db")
+    db_exists = os.path.exists(db_path)
 
-    # 检查数据库文件是否存在
-    if not os.path.exists(db_path):
-        logger.info("🔧 Database not found, initializing...")
+    # 如果数据库文件不存在，创建表结构
+    if not db_exists:
+        logger.info("🔧 Database not found, creating tables...")
         Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables created")
 
-        # 添加默认供应商
-        db_manager = DBManager()
+    # 检查是否需要添加默认供应商
+    db_manager = DBManager()
+    providers = db_manager.get_providers()
+
+    if not providers:
+        logger.info("🔧 No providers found, adding defaults...")
 
         # Gemini
         db_manager.add_or_update_provider({
@@ -49,9 +55,9 @@ def init_database():
             "skip_ai_analysis": False
         })
 
-        logger.info("✅ Database initialized with default providers")
+        logger.info("✅ Default providers (Gemini, OpenAI) added")
     else:
-        logger.info("✅ Database exists, skipping initialization")
+        logger.info(f"✅ Database ready with {len(providers)} provider(s)")
 
 def main():
     """启动 Web 服务"""
