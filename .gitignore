@@ -71,8 +71,7 @@ coverage.xml
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Docker
-.dockerignore
+# Docker (keep .dockerignore in git)
 
 # Project-specific data directories
 data/

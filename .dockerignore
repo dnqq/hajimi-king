@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info
+.pytest_cache/
+.coverage
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files (will be mounted as volume)
+.env
+.env.*
+
+# Data directories (will be mounted as volumes)
+data/
+logs/
+keys/
+results/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Documentation (not needed in runtime)
+*.md
+CHANGELOG.md
+FEATURES.md
+LICENSE
+
+# CI/CD
+.github/
+
+# Development scripts
+.claude/
