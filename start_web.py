@@ -15,7 +15,7 @@ def init_database():
     """初始化数据库（如果需要）"""
     from common.config import config
     from web.models import Base, engine
-    from utils.db_manager import DBManager
+    from utils.config_loader import config_loader
 
     db_path = os.path.join(config.DATA_PATH, "hajimi_king.db")
     db_exists = os.path.exists(db_path)
@@ -27,14 +27,13 @@ def init_database():
         logger.info("✅ Database tables created")
 
     # 检查是否需要添加默认供应商
-    db_manager = DBManager()
-    providers = db_manager.get_providers()
+    providers = config_loader.get_ai_providers()
 
     if not providers:
         logger.info("🔧 No providers found, adding defaults...")
 
         # Gemini
-        db_manager.add_or_update_provider({
+        config_loader.add_or_update_provider({
             "name": "gemini",
             "type": "gemini",
             "check_model": "gemini-2.0-flash-exp",
@@ -45,7 +44,7 @@ def init_database():
         })
 
         # OpenAI
-        db_manager.add_or_update_provider({
+        config_loader.add_or_update_provider({
             "name": "openai",
             "type": "openai_style",
             "check_model": "gpt-3.5-turbo",
