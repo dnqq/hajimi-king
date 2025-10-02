@@ -9,7 +9,7 @@ import requests
 
 from common.Logger import logger
 from common.config import config
-from utils.file_manager import file_manager, checkpoint
+from utils.file_manager import file_manager
 
 
 class SyncUtils:
