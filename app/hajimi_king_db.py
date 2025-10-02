@@ -291,37 +291,44 @@ def main():
             logger.info(f"   Pending GPT Load sync: {stats['pending_gpt_load_sync']}")
 
     # 4. 显示系统信息
-    search_queries = file_manager.get_search_queries()
+    # 1) 自动生成查询（基于供应商的 key_patterns）
+    auto_queries = []
+    providers = config.AI_PROVIDERS_CONFIG
+    languages = ['python', 'javascript', 'go', 'java', 'typescript']
 
-    # 如果没有自定义查询，从供应商的 key_patterns 自动生成
-    if not search_queries:
-        logger.info("📝 No custom queries found, generating from provider patterns...")
-        search_queries = []
-        providers = config.AI_PROVIDERS_CONFIG
-        languages = ['python', 'javascript', 'go', 'java', 'typescript']
-
-        for provider in providers:
-            patterns = provider.get('key_patterns', [])
-            for pattern in patterns:
-                # 从正则提取关键前缀（如 AIzaSy, sk-proj）
-                if pattern.startswith('AIzaSy'):
-                    prefix = 'AIzaSy'
-                elif pattern.startswith('sk-'):
-                    prefix = 'sk-'
+    for provider in providers:
+        patterns = provider.get('key_patterns', [])
+        for pattern in patterns:
+            # 从正则提取关键前缀（如 AIzaSy, sk-proj）
+            if pattern.startswith('AIzaSy'):
+                prefix = 'AIzaSy'
+            elif pattern.startswith('sk-'):
+                prefix = 'sk-'
+            else:
+                # 尝试提取前6个非正则字符
+                import re
+                match = re.match(r'^([A-Za-z0-9\-_]{3,10})', pattern)
+                if match:
+                    prefix = match.group(1)
                 else:
-                    # 尝试提取前6个非正则字符
-                    import re
-                    match = re.match(r'^([A-Za-z0-9\-_]{3,10})', pattern)
-                    if match:
-                        prefix = match.group(1)
-                    else:
-                        continue
+                    continue
 
-                # 为每个语言生成查询
-                for lang in languages:
-                    search_queries.append(f'{prefix} language:{lang}')
+            # 为每个语言生成查询
+            for lang in languages:
+                auto_queries.append(f'{prefix} language:{lang}')
 
-        logger.info(f"✅ Generated {len(search_queries)} queries from {len(providers)} provider(s)")
+    # 2) 加载自定义高级查询（queries.txt）
+    custom_queries = file_manager.get_search_queries()
+
+    # 3) 合并：先自动查询，再自定义查询
+    search_queries = auto_queries + custom_queries
+
+    if auto_queries:
+        logger.info(f"🤖 Auto-generated {len(auto_queries)} queries from {len(providers)} provider(s)")
+    if custom_queries:
+        logger.info(f"📝 Loaded {len(custom_queries)} custom queries from queries.txt")
+    if not search_queries:
+        logger.warning("⚠️ No search queries available (no providers and no queries.txt)")
 
     logger.info("📋 SYSTEM INFORMATION:")
     logger.info(f"🔑 GitHub tokens: {len(config.GITHUB_TOKENS)} configured")
