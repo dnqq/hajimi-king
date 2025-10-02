@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Union, Any
 from abc import ABC, abstractmethod
 
 from common.Logger import logger
-from common.config import Config
+from common.config import config
 
 
 class ConfigBasedAIProvider(ABC):
@@ -26,8 +26,8 @@ class ConfigBasedAIProvider(ABC):
     
     def get_random_proxy(self) -> Optional[Dict[str, str]]:
         """获取随机代理配置"""
-        from common.config import Config
-        return Config.get_random_proxy()
+        from common.config import config
+        return config.get_random_proxy()
 
 
 class OpenAIStyleProvider(ConfigBasedAIProvider):
@@ -190,10 +190,10 @@ class ConfigBasedAIProviderFactory:
     @classmethod
     def get_all_providers(cls) -> Dict[str, ConfigBasedAIProvider]:
         """获取所有配置的供应商实例"""
-        from common.config import Config
+        from common.config import config
         providers = {}
         
-        for provider_config in Config.AI_PROVIDERS_CONFIG:
+        for provider_config in config.AI_PROVIDERS_CONFIG:
             try:
                 provider = cls.get_provider(provider_config)
                 providers[provider.name] = provider
@@ -205,7 +205,7 @@ class ConfigBasedAIProviderFactory:
     @classmethod
     def get_provider_by_name(cls, name: str) -> Optional[ConfigBasedAIProvider]:
         """根据名称获取供应商实例"""
-        for provider_config in Config.AI_PROVIDERS_CONFIG:
+        for provider_config in config.AI_PROVIDERS_CONFIG:
             if provider_config.get('name') == name:
                 return cls.get_provider(provider_config)
         return None

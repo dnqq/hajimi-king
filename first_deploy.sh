@@ -34,10 +34,10 @@ IMAGE_TAG="0.0.1"
 IMAGE_NAME="${PROJECT_NAME}:${IMAGE_TAG}"
 COMPOSE_FILE="docker-compose.yml"
 
-# 获取脚本所在目录
+# 获取脚本所在目录（即hajimi-king源码目录）
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-# hajimi-king源码目录（脚本所在目录的hajimi-king子目录）
-SOURCE_DIR="${SCRIPT_DIR}/hajimi-king"
+# hajimi-king源码目录就是脚本所在目录
+SOURCE_DIR="${SCRIPT_DIR}"
 
 # 当前工作目录（部署目录）
 DEPLOY_DIR="$(pwd)"

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计分析 - Hajimi King</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
+    <script src="/static/js/vue.global.prod.js"></script>
+    <script src="/static/js/element-plus.js"></script>
+    <script src="/static/js/echarts.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+        }
+        #app {
+            min-height: 100vh;
+        }
+        .header {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #409eff;
+        }
+        .nav {
+            display: flex;
+            gap: 20px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #606266;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .nav a:hover {
+            color: #409eff;
+        }
+        .main-container {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .chart-container {
+            background: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <div class="nav-wrapper">
+                <div style="display: flex; align-items: center; gap: 2rem;">
+                    <div class="logo">🎪 Hajimi King</div>
+                    <div class="nav">
+                        <a href="/">📊 仪表盘</a>
+                        <a href="/keys">🔑 密钥管理</a>
+                        <a href="/stats" class="active">📈 统计分析</a>
+                        <a href="/config">⚙️ 系统配置</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <!-- 供应商对比 -->
+            <div class="chart-container">
+                <div class="chart-title">供应商密钥数量对比</div>
+                <div ref="providerCompareChart" class="chart"></div>
+            </div>
+
+            <!-- 供应商有效率对比 -->
+            <div class="chart-container">
+                <div class="chart-title">供应商有效率对比</div>
+                <div ref="providerValidRateChart" class="chart"></div>
+            </div>
+
+            <!-- 每日趋势 -->
+            <div class="chart-container">
+                <div class="chart-title">最近30天密钥发现趋势</div>
+                <div ref="dailyTrendChart" class="chart"></div>
+            </div>
+
+            <!-- Top 10 仓库 -->
+            <div class="chart-container">
+                <div class="chart-title">Top 10 密钥来源仓库</div>
+                <div ref="topReposChart" class="chart"></div>
+            </div>
+
+            <!-- 同步状态 -->
+            <div class="chart-container">
+                <div class="chart-title">同步管理</div>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-card>
+                            <template #header>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Gemini Balancer</span>
+                                    <el-button type="primary" size="small" @click="syncToBalancer" :loading="syncing.balancer">
+                                        立即同步
+                                    </el-button>
+                                </div>
+                            </template>
+                            <div>
+                                <p>待同步: {{ syncStatus.balancer?.pending_count || 0 }} 个密钥</p>
+                                <p>最近1小时: {{ syncStatus.balancer?.recent_synced || 0 }} 个已同步</p>
+                            </div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-card>
+                            <template #header>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>GPT Load</span>
+                                    <el-button type="primary" size="small" @click="syncToGptLoad" :loading="syncing.gpt_load">
+                                        立即同步
+                                    </el-button>
+                                </div>
+                            </template>
+                            <div>
+                                <p>待同步: {{ syncStatus.gpt_load?.pending_count || 0 }} 个密钥</p>
+                                <p>最近1小时: {{ syncStatus.gpt_load?.recent_synced || 0 }} 个已同步</p>
+                            </div>
+                        </el-card>
+                    </el-col>
+                </el-row>
+            </div>
+
+            <!-- 导出功能 -->
+            <div class="chart-container">
+                <div class="chart-title">导出密钥</div>
+                <el-space>
+                    <el-button type="success" @click="exportCSV">导出 CSV</el-button>
+                    <el-button type="success" @click="exportJSON">导出 JSON</el-button>
+                </el-space>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    providerStats: [],
+                    dailyStats: [],
+                    topRepos: [],
+                    syncStatus: {},
+                    syncing: {
+                        balancer: false,
+                        gpt_load: false
+                    }
+                };
+            },
+            mounted() {
+                // 检查登录
+                const token = localStorage.getItem('access_token');
+                if (!token) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                this.loadData();
+            },
+            methods: {
+                async loadData() {
+                    await this.loadProviderStats();
+                    await this.loadDailyStats();
+                    await this.loadTopRepos();
+                    await this.loadSyncStatus();
+                },
+                async loadProviderStats() {
+                    try {
+                        const response = await fetch('/api/stats/providers', {
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        this.providerStats = await response.json();
+                        this.renderProviderCharts();
+                    } catch (error) {
+                        ElMessage.error('加载供应商统计失败');
+                    }
+                },
+                async loadDailyStats() {
+                    try {
+                        const response = await fetch('/api/stats/daily?days=30', {
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        this.dailyStats = await response.json();
+                        this.renderDailyTrendChart();
+                    } catch (error) {
+                        ElMessage.error('加载每日统计失败');
+                    }
+                },
+                async loadTopRepos() {
+                    try {
+                        const response = await fetch('/api/stats/top-repos?limit=10', {
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        this.topRepos = await response.json();
+                        this.renderTopReposChart();
+                    } catch (error) {
+                        ElMessage.error('加载仓库统计失败');
+                    }
+                },
+                async loadSyncStatus() {
+                    try {
+                        const response = await fetch('/api/sync/status', {
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        this.syncStatus = await response.json();
+                    } catch (error) {
+                        ElMessage.error('加载同步状态失败');
+                    }
+                },
+                renderProviderCharts() {
+                    // 密钥数量对比
+                    const compareChart = echarts.init(this.$refs.providerCompareChart);
+                    compareChart.setOption({
+                        tooltip: { trigger: 'axis' },
+                        legend: { data: ['总数', '有效', '限流', '无效'] },
+                        xAxis: {
+                            type: 'category',
+                            data: this.providerStats.map(p => p.provider)
+                        },
+                        yAxis: { type: 'value' },
+                        series: [
+                            { name: '总数', type: 'bar', data: this.providerStats.map(p => p.total_keys) },
+                            { name: '有效', type: 'bar', data: this.providerStats.map(p => p.valid_keys), itemStyle: { color: '#67c23a' } },
+                            { name: '限流', type: 'bar', data: this.providerStats.map(p => p.rate_limited_keys), itemStyle: { color: '#e6a23c' } },
+                            { name: '无效', type: 'bar', data: this.providerStats.map(p => p.invalid_keys), itemStyle: { color: '#f56c6c' } }
+                        ]
+                    });
+
+                    // 有效率对比
+                    const validRateChart = echarts.init(this.$refs.providerValidRateChart);
+                    validRateChart.setOption({
+                        tooltip: { trigger: 'axis', formatter: '{b}: {c}%' },
+                        xAxis: {
+                            type: 'category',
+                            data: this.providerStats.map(p => p.provider)
+                        },
+                        yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
+                        series: [{
+                            name: '有效率',
+                            type: 'bar',
+                            data: this.providerStats.map(p => p.valid_rate),
+                            itemStyle: { color: '#409eff' }
+                        }]
+                    });
+                },
+                renderDailyTrendChart() {
+                    const chart = echarts.init(this.$refs.dailyTrendChart);
+
+                    // 按日期分组
+                    const dateMap = {};
+                    this.dailyStats.forEach(item => {
+                        const dateStr = new Date(item.date).toLocaleDateString('zh-CN');
+                        if (!dateMap[dateStr]) dateMap[dateStr] = 0;
+                        dateMap[dateStr] += item.keys_discovered;
+                    });
+
+                    const dates = Object.keys(dateMap).sort();
+                    const values = dates.map(date => dateMap[date]);
+
+                    chart.setOption({
+                        tooltip: { trigger: 'axis' },
+                        xAxis: { type: 'category', data: dates },
+                        yAxis: { type: 'value' },
+                        series: [{
+                            name: '发现密钥数',
+                            type: 'line',
+                            smooth: true,
+                            data: values,
+                            areaStyle: { color: 'rgba(64, 158, 255, 0.2)' },
+                            itemStyle: { color: '#409eff' }
+                        }]
+                    });
+                },
+                renderTopReposChart() {
+                    const chart = echarts.init(this.$refs.topReposChart);
+                    chart.setOption({
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                        grid: { left: '15%' },
+                        xAxis: { type: 'value' },
+                        yAxis: {
+                            type: 'category',
+                            data: this.topRepos.map(r => r.repo).reverse()
+                        },
+                        series: [{
+                            name: '密钥数',
+                            type: 'bar',
+                            data: this.topRepos.map(r => r.total_keys).reverse(),
+                            itemStyle: { color: '#409eff' }
+                        }]
+                    });
+                },
+                async syncToBalancer() {
+                    this.syncing.balancer = true;
+                    try {
+                        const response = await fetch('/api/sync/trigger/balancer', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            ElMessage.success(`同步完成: ${result.success_count} 成功, ${result.fail_count} 失败`);
+                            this.loadSyncStatus();
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        ElMessage.error('同步失败');
+                    } finally {
+                        this.syncing.balancer = false;
+                    }
+                },
+                async syncToGptLoad() {
+                    this.syncing.gpt_load = true;
+                    try {
+                        const response = await fetch('/api/sync/trigger/gpt_load', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            ElMessage.success(`同步完成: ${result.success_count} 成功, ${result.fail_count} 失败`);
+                            this.loadSyncStatus();
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        ElMessage.error('同步失败');
+                    } finally {
+                        this.syncing.gpt_load = false;
+                    }
+                },
+                exportCSV() {
+                    window.open('/api/export/csv', '_blank');
+                },
+                exportJSON() {
+                    window.open('/api/export/json', '_blank');
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

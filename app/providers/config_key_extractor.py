@@ -118,9 +118,9 @@ class ConfigKeyExtractor:
         Returns:
             str: GPT Load Group名称
         """
-        from common.config import Config
+        from common.config import config
         
-        for provider_config in Config.AI_PROVIDERS_CONFIG:
+        for provider_config in config.AI_PROVIDERS_CONFIG:
             if provider_config.get('name') == provider_name:
                 return provider_config.get('gpt_load_group_name', '')
         

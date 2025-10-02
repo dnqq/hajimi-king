@@ -1,13 +1,36 @@
 [project]
 name = "hajimi-king"
 version = "0.0.1-beta"
-description = "Add your description here"
+description = "从 GitHub 自动挖掘并验证多平台 AI API 密钥的智能工具"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    {name = "dnqq", email = "dnqq@users.noreply.github.com"}
+]
+license = {text = "MIT"}
+keywords = ["github", "api-key", "ai", "gemini", "openai", "key-mining"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "google-generativeai>=0.8.5",
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
     "openai>=1.0.0",
     "httpx>=0.27.0",
+    # Web Dashboard dependencies
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.0",
+    "cryptography>=41.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/dnqq/hajimi-king"
+Repository = "https://github.com/dnqq/hajimi-king"
+Issues = "https://github.com/dnqq/hajimi-king/issues"

@@ -1,15 +1,48 @@
 version: '3.8'
 
 services:
-  hajimi-king:
-    image: hajimi-king:0.0.1
-    container_name: hajimi-king
+  # 挖掘程序
+  miner:
+    build: .
+    container_name: hajimi-king-miner
     restart: unless-stopped
-    network_mode: host
-    # 环境变量
     env_file:
       - .env
-    
-    # 数据卷挂载
     volumes:
       - ./data:/app/data
+      - ./logs:/app/logs
+    command: python -m app.hajimi_king_db
+    networks:
+      - hajimi-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Web Dashboard
+  web:
+    build: .
+    container_name: hajimi-king-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    command: python start_web.py
+    networks:
+      - hajimi-network
+    depends_on:
+      - miner
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  hajimi-network:
+    driver: bridge

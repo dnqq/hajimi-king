@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>密钥管理 - Hajimi King</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
+    <script src="/static/js/vue.global.prod.js"></script>
+    <script src="/static/js/element-plus.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+        }
+        #app {
+            min-height: 100vh;
+        }
+        .header {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #409eff;
+        }
+        .nav {
+            display: flex;
+            gap: 20px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #606266;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .nav a:hover {
+            color: #409eff;
+        }
+        .main-container {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .filter-bar {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+        .table-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <div class="nav-wrapper">
+                <div style="display: flex; align-items: center; gap: 2rem;">
+                    <div class="logo">🎪 Hajimi King</div>
+                    <div class="nav">
+                        <a href="/">📊 仪表盘</a>
+                        <a href="/keys" class="active">🔑 密钥管理</a>
+                        <a href="/stats">📈 统计分析</a>
+                        <a href="/config">⚙️ 系统配置</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <!-- 筛选栏 -->
+            <div class="filter-bar">
+                <el-row :gutter="20">
+                    <el-col :span="6">
+                        <el-select v-model="filters.provider" placeholder="选择供应商" clearable @change="loadKeys">
+                            <el-option label="Gemini" value="gemini"></el-option>
+                            <el-option label="OpenAI" value="openai"></el-option>
+                            <el-option label="OpenRouter" value="openrouter"></el-option>
+                            <el-option label="Cerebras" value="cerebras"></el-option>
+                        </el-select>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-select v-model="filters.status" placeholder="选择状态" clearable @change="loadKeys">
+                            <el-option label="有效" value="valid"></el-option>
+                            <el-option label="限流" value="rate_limited"></el-option>
+                            <el-option label="无效" value="invalid"></el-option>
+                        </el-select>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-input
+                            v-model="filters.search"
+                            placeholder="搜索仓库名或密钥"
+                            clearable
+                            @keyup.enter="loadKeys"
+                        >
+                            <template #append>
+                                <el-button @click="loadKeys" icon="Search">搜索</el-button>
+                            </template>
+                        </el-input>
+                    </el-col>
+                </el-row>
+            </div>
+
+            <!-- 密钥表格 -->
+            <div class="table-container">
+                <el-table
+                    :data="keys"
+                    stripe
+                    v-loading="loading"
+                    @selection-change="handleSelectionChange"
+                >
+                    <el-table-column type="selection" width="55"></el-table-column>
+                    <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                    <el-table-column prop="provider" label="供应商" width="120">
+                        <template #default="scope">
+                            <el-tag>{{ scope.row.provider }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="key_preview" label="密钥预览" width="180">
+                        <template #default="scope">
+                            <el-button
+                                link
+                                type="primary"
+                                @click="showKeyDetail(scope.row.id)"
+                            >
+                                {{ scope.row.key_preview }}
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="source_repo" label="来源仓库" min-width="200"></el-table-column>
+                    <el-table-column prop="status" label="状态" width="100">
+                        <template #default="scope">
+                            <el-tag v-if="scope.row.status === 'valid'" type="success">有效</el-tag>
+                            <el-tag v-else-if="scope.row.status === 'rate_limited'" type="warning">限流</el-tag>
+                            <el-tag v-else type="info">无效</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="同步状态" width="120">
+                        <template #default="scope">
+                            <el-icon v-if="scope.row.synced_to_balancer || scope.row.synced_to_gpt_load" color="#67c23a"><SuccessFilled /></el-icon>
+                            <el-icon v-else color="#909399"><CircleCloseFilled /></el-icon>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="discovered_at" label="发现时间" width="180">
+                        <template #default="scope">
+                            {{ formatTime(scope.row.discovered_at) }}
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="180" fixed="right">
+                        <template #default="scope">
+                            <el-button link type="primary" size="small" @click="showKeyDetail(scope.row.id)">详情</el-button>
+                            <el-button link type="danger" size="small" @click="deleteKey(scope.row.id)">删除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <!-- 分页 -->
+                <el-pagination
+                    v-model:current-page="pagination.page"
+                    v-model:page-size="pagination.page_size"
+                    :total="pagination.total"
+                    :page-sizes="[20, 50, 100]"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    @current-change="loadKeys"
+                    @size-change="loadKeys"
+                    style="margin-top: 20px; justify-content: flex-end;"
+                />
+
+                <!-- 批量操作 -->
+                <div v-if="selectedKeys.length > 0" style="margin-top: 20px;">
+                    <el-button type="danger" @click="batchDelete">批量删除 ({{ selectedKeys.length }})</el-button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 密钥详情弹窗 -->
+        <el-dialog v-model="detailDialogVisible" title="密钥详情" width="800px">
+            <el-descriptions v-if="currentKey" :column="2" border>
+                <el-descriptions-item label="ID">{{ currentKey.id }}</el-descriptions-item>
+                <el-descriptions-item label="供应商">{{ currentKey.provider }}</el-descriptions-item>
+                <el-descriptions-item label="状态">
+                    <el-tag v-if="currentKey.status === 'valid'" type="success">有效</el-tag>
+                    <el-tag v-else-if="currentKey.status === 'rate_limited'" type="warning">限流</el-tag>
+                    <el-tag v-else type="info">无效</el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="GPT Load 分组">{{ currentKey.gpt_load_group_name || '未配置' }}</el-descriptions-item>
+                <el-descriptions-item label="完整密钥" :span="2">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <el-input v-model="currentKey.key" readonly></el-input>
+                        <el-button @click="copyKey(currentKey.key)">复制</el-button>
+                    </div>
+                </el-descriptions-item>
+                <el-descriptions-item label="来源仓库" :span="2">
+                    <a :href="`https://github.com/${currentKey.source_repo}`" target="_blank">{{ currentKey.source_repo }}</a>
+                </el-descriptions-item>
+                <el-descriptions-item label="文件路径" :span="2">{{ currentKey.source_file_path }}</el-descriptions-item>
+                <el-descriptions-item label="文件 URL" :span="2">
+                    <a :href="currentKey.source_file_url" target="_blank">查看文件</a>
+                </el-descriptions-item>
+                <el-descriptions-item label="发现时间">{{ formatTime(currentKey.discovered_at) }}</el-descriptions-item>
+                <el-descriptions-item label="最后验证">{{ formatTime(currentKey.last_validated_at) }}</el-descriptions-item>
+                <el-descriptions-item label="同步状态">
+                    Balancer: {{ currentKey.synced_to_balancer ? '已同步' : '未同步' }}<br>
+                    GPT Load: {{ currentKey.synced_to_gpt_load ? '已同步' : '未同步' }}
+                </el-descriptions-item>
+            </el-descriptions>
+        </el-dialog>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    keys: [],
+                    selectedKeys: [],
+                    loading: false,
+                    filters: {
+                        provider: '',
+                        status: '',
+                        search: ''
+                    },
+                    pagination: {
+                        page: 1,
+                        page_size: 20,
+                        total: 0
+                    },
+                    detailDialogVisible: false,
+                    currentKey: null
+                };
+            },
+            mounted() {
+                this.loadKeys();
+            },
+            methods: {
+                async loadKeys() {
+                    this.loading = true;
+                    try {
+                        const params = new URLSearchParams({
+                            page: this.pagination.page,
+                            page_size: this.pagination.page_size
+                        });
+
+                        if (this.filters.provider) params.append('provider', this.filters.provider);
+                        if (this.filters.status) params.append('status', this.filters.status);
+                        if (this.filters.search) params.append('search', this.filters.search);
+
+                        const response = await fetch(`/api/keys/?${params}`);
+                        const data = await response.json();
+
+                        this.keys = data.items;
+                        this.pagination.total = data.total;
+                    } catch (error) {
+                        ElMessage.error('加载密钥列表失败');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async showKeyDetail(keyId) {
+                    try {
+                        const response = await fetch(`/api/keys/${keyId}`);
+                        this.currentKey = await response.json();
+                        this.detailDialogVisible = true;
+                    } catch (error) {
+                        ElMessage.error('加载密钥详情失败');
+                    }
+                },
+                async deleteKey(keyId) {
+                    try {
+                        await ElMessageBox.confirm('确定要删除这个密钥吗？', '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const response = await fetch(`/api/keys/${keyId}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            ElMessage.success('删除成功');
+                            this.loadKeys();
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除失败');
+                        }
+                    }
+                },
+                async batchDelete() {
+                    try {
+                        await ElMessageBox.confirm(`确定要删除选中的 ${this.selectedKeys.length} 个密钥吗？`, '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const keyIds = this.selectedKeys.map(k => k.id);
+                        const response = await fetch('/api/keys/batch-delete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(keyIds)
+                        });
+
+                        if (response.ok) {
+                            ElMessage.success('批量删除成功');
+                            this.loadKeys();
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('批量删除失败');
+                        }
+                    }
+                },
+                handleSelectionChange(selection) {
+                    this.selectedKeys = selection;
+                },
+                copyKey(key) {
+                    navigator.clipboard.writeText(key).then(() => {
+                        ElMessage.success('已复制到剪贴板');
+                    });
+                },
+                formatTime(timestamp) {
+                    if (!timestamp) return '-';
+                    const date = new Date(timestamp);
+                    return date.toLocaleString('zh-CN');
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

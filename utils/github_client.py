@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any
 import requests
 
 from common.Logger import logger
-from common.config import Config
+from common.config import config
 
 
 class GitHubClient:
@@ -61,7 +61,7 @@ class GitHubClient:
                 try:
                     total_requests += 1
                     # 获取随机proxy配置
-                    proxies = Config.get_random_proxy()
+                    proxies = config.get_random_proxy()
                     if proxies:
                         response = requests.get(self.GITHUB_API_URL, headers=headers, params=params, timeout=30, proxies=proxies)
                     else:
@@ -171,7 +171,7 @@ class GitHubClient:
 
         try:
             # 获取proxy配置
-            proxies = Config.get_random_proxy()
+            proxies = config.get_random_proxy()
 
             logger.info(f"🔍 Processing file: {metadata_url}")
             if proxies:

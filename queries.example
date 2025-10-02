@@ -1,5 +1,42 @@
-# GitHub搜索查询配置文件
-# 每行一个查询语句，支持GitHub搜索语法
-# 以#开头的行为注释，空行会被忽略
+# ================================
+# Hajimi King - 搜索查询配置文件
+# ================================
+#
+# 工作模式：
+# 1. 自动生成：从 AI_PROVIDERS_CONFIG 中提取 key_patterns 的前缀自动生成查询
+# 2. 手动补充：在此文件中添加高级查询或特殊场景查询
+# 3. 智能合并：手动查询优先，自动查询补充（自动去重）
+#
+# 自动生成的查询类型：
+# - 精准前缀搜索：如 "AIzaSy" in:file, "sk-" in:file
+# - 通用配置文件：如 filename:.env, filename:config.json
+#
+# 注意事项：
+# - 以 # 开头的是注释
+# - 空行会被忽略
+# - 查询会对所有配置的供应商生效（一次搜索，提取所有类型的 key）
+# - 支持完整的 GitHub 搜索语法：https://docs.github.com/en/search-github/searching-on-github/searching-code
+#
+# ================================
+# 以下是手动查询示例（可选）
+# ================================
 
-AIzaSy in:file
+# 示例1：针对特定时间范围的搜索
+# "AIzaSy" in:file created:>2024-01-01
+
+# 示例2：针对特定编程语言
+# "sk-" in:file language:python
+
+# 示例3：排除测试和示例文件
+# "api_key" in:file -path:test/ -path:example/
+
+# 示例4：针对特定组织或用户
+# "csk-" in:file user:some-org
+
+# 示例5：组合搜索条件
+# filename:.env.production (api OR key OR secret)
+
+# ================================
+# 提示：自动生成的查询已经覆盖了大部分场景
+# 如果没有特殊需求，可以保持此文件为空或只保留注释
+# ================================

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - Hajimi King</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3.3.11/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus@2.4.4/dist/index.full.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 背景动画 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .login-container {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            padding: 3rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo-subtitle {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .login-form {
+            margin-top: 2rem;
+        }
+
+        .el-form-item {
+            margin-bottom: 1.5rem;
+        }
+
+        .el-input__wrapper {
+            background: rgba(51, 65, 85, 0.5) !important;
+            border: 1px solid rgba(99, 102, 241, 0.2) !important;
+            box-shadow: none !important;
+            transition: all 0.3s ease;
+        }
+
+        .el-input__wrapper:hover {
+            border-color: rgba(99, 102, 241, 0.4) !important;
+        }
+
+        .el-input__wrapper.is-focus {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+        }
+
+        .el-input__inner {
+            color: #f8fafc !important;
+        }
+
+        .el-input__inner::placeholder {
+            color: #64748b !important;
+        }
+
+        .el-button--primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border: none !important;
+            padding: 0.875rem 1.5rem !important;
+            font-weight: 600 !important;
+            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .el-button--primary:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.5) !important;
+        }
+
+        .el-button--primary:active {
+            transform: translateY(0) !important;
+        }
+
+        .el-alert {
+            background: rgba(245, 158, 11, 0.1) !important;
+            border: 1px solid rgba(245, 158, 11, 0.3) !important;
+            border-radius: 0.75rem !important;
+        }
+
+        .el-alert__title {
+            color: #fbbf24 !important;
+        }
+
+        .el-alert__description {
+            color: #fcd34d !important;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .feature-item {
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-text {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 640px) {
+            .login-container {
+                padding: 2rem;
+                margin: 1rem;
+            }
+
+            .logo-text {
+                font-size: 1.5rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="login-container">
+            <div class="logo-container">
+                <div class="logo">🎪</div>
+                <div class="logo-text">Hajimi King</div>
+                <div class="logo-subtitle">AI API Key Mining Dashboard</div>
+            </div>
+
+            <el-form :model="form" class="login-form" @submit.prevent="login">
+                <el-form-item>
+                    <el-input
+                        v-model="form.access_key"
+                        type="password"
+                        placeholder="请输入访问密钥"
+                        size="large"
+                        show-password
+                        @keyup.enter="login"
+                    >
+                        <template #prefix>
+                            <el-icon><Lock /></el-icon>
+                        </template>
+                    </el-input>
+                </el-form-item>
+
+                <el-form-item>
+                    <el-button
+                        type="primary"
+                        size="large"
+                        style="width: 100%;"
+                        @click="login"
+                        :loading="loading"
+                    >
+                        {{ loading ? '登录中...' : '登录' }}
+                    </el-button>
+                </el-form-item>
+            </el-form>
+
+            <el-alert
+                v-if="showDevNote"
+                title="开发模式"
+                type="warning"
+                description="未配置 WEB_ACCESS_KEY，任意密钥即可登录"
+                :closable="false"
+                style="margin-top: 20px;"
+            />
+
+            <div class="features">
+                <div class="feature-item">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-text">智能搜索</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔐</div>
+                    <div class="feature-text">密钥验证</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-text">数据统计</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    form: {
+                        access_key: ''
+                    },
+                    loading: false,
+                    showDevNote: false
+                };
+            },
+            mounted() {
+                // 检查是否已登录
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    window.location.href = '/';
+                }
+            },
+            methods: {
+                async login() {
+                    if (!this.form.access_key) {
+                        ElMessage.warning('请输入访问密钥');
+                        return;
+                    }
+
+                    this.loading = true;
+
+                    try {
+                        const response = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ access_key: this.form.access_key })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            localStorage.setItem('access_token', data.token);
+                            ElMessage.success('登录成功');
+
+                            setTimeout(() => {
+                                window.location.href = '/';
+                            }, 500);
+                        } else {
+                            ElMessage.error(data.message || '访问密钥错误');
+                        }
+                    } catch (error) {
+                        ElMessage.error('登录失败，请重试');
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

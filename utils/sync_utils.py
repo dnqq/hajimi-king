@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 import requests
 
 from common.Logger import logger
-from common.config import Config
+from common.config import config
 from utils.file_manager import file_manager, checkpoint
 
 
@@ -18,22 +18,22 @@ class SyncUtils:
     def __init__(self):
         """初始化同步工具"""
         # Gemini Balancer 配置
-        self.balancer_url = Config.GEMINI_BALANCER_URL.rstrip('/') if Config.GEMINI_BALANCER_URL else ""
-        self.balancer_auth = Config.GEMINI_BALANCER_AUTH
-        self.balancer_sync_enabled = Config.parse_bool(Config.GEMINI_BALANCER_SYNC_ENABLED)
+        self.balancer_url = config.GEMINI_BALANCER_URL.rstrip('/') if config.GEMINI_BALANCER_URL else ""
+        self.balancer_auth = config.GEMINI_BALANCER_AUTH
+        self.balancer_sync_enabled = config.parse_bool(config.GEMINI_BALANCER_SYNC_ENABLED)
         self.balancer_enabled = bool(self.balancer_url and self.balancer_auth and self.balancer_sync_enabled)
 
         # GPT Load Balancer 配置
-        self.gpt_load_url = Config.GPT_LOAD_URL.rstrip('/') if Config.GPT_LOAD_URL else ""
-        self.gpt_load_auth = Config.GPT_LOAD_AUTH
-        self.gpt_load_sync_enabled = Config.parse_bool(Config.GPT_LOAD_SYNC_ENABLED)
+        self.gpt_load_url = config.GPT_LOAD_URL.rstrip('/') if config.GPT_LOAD_URL else ""
+        self.gpt_load_auth = config.GPT_LOAD_AUTH
+        self.gpt_load_sync_enabled = config.parse_bool(config.GPT_LOAD_SYNC_ENABLED)
         self.gpt_load_enabled = bool(self.gpt_load_url and self.gpt_load_auth and self.gpt_load_sync_enabled)
         
         # 从AI_PROVIDERS_CONFIG获取group names
         self.gpt_load_group_names = []
         self.provider_to_group_map = {}
         if self.gpt_load_enabled:
-            for provider_config in Config.AI_PROVIDERS_CONFIG:
+            for provider_config in config.AI_PROVIDERS_CONFIG:
                 group_name = provider_config.get('gpt_load_group_name', '').strip()
                 if group_name:
                     self.gpt_load_group_names.append(group_name)

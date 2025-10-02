@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hajimi King - 配置管理</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
+    <script src="/static/js/vue.global.prod.js"></script>
+    <script src="/static/js/element-plus.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+        }
+        #app {
+            min-height: 100vh;
+        }
+        .header {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #409eff;
+        }
+        .nav {
+            display: flex;
+            gap: 20px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #606266;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .nav a:hover, .nav a.active {
+            color: #409eff;
+        }
+        .main-container {
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .config-section {
+            background: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #409eff;
+        }
+        .provider-card {
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .provider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <div class="nav-wrapper">
+                <div style="display: flex; align-items: center; gap: 2rem;">
+                    <div class="logo">🎪 Hajimi King</div>
+                    <div class="nav">
+                        <a href="/">📊 仪表盘</a>
+                        <a href="/keys">🔑 密钥管理</a>
+                        <a href="/stats">📈 统计分析</a>
+                        <a href="/config" class="active">⚙️ 系统配置</a>
+                    </div>
+                </div>
+                <div>
+                    <el-button type="danger" size="small" @click="logout">退出登录</el-button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-container" v-loading="loading">
+            <!-- AI 供应商配置 -->
+            <div class="config-section">
+                <div class="section-title">AI 供应商配置</div>
+
+                <div v-for="(provider, index) in config.ai_providers" :key="index" class="provider-card">
+                    <div class="provider-header">
+                        <h4>供应商 #{{ index + 1 }}</h4>
+                        <el-button type="danger" size="small" @click="removeProvider(index)">删除</el-button>
+                    </div>
+
+                    <el-form label-width="150px">
+                        <el-form-item label="供应商名称">
+                            <el-input v-model="provider.name" placeholder="例如: gemini"></el-input>
+                        </el-form-item>
+
+                        <el-form-item label="供应商类型">
+                            <el-select v-model="provider.type">
+                                <el-option label="Gemini" value="gemini"></el-option>
+                                <el-option label="OpenAI Style" value="openai_style"></el-option>
+                            </el-select>
+                        </el-form-item>
+
+                        <el-form-item label="检查模型">
+                            <el-input v-model="provider.check_model" placeholder="例如: gemini-2.5-flash"></el-input>
+                        </el-form-item>
+
+                        <el-form-item label="API Endpoint" v-if="provider.type === 'gemini'">
+                            <el-input v-model="provider.api_endpoint" placeholder="generativelanguage.googleapis.com"></el-input>
+                        </el-form-item>
+
+                        <el-form-item label="API Base URL" v-if="provider.type === 'openai_style'">
+                            <el-input v-model="provider.api_base_url" placeholder="https://api.openai.com/v1"></el-input>
+                        </el-form-item>
+
+                        <el-form-item label="密钥正则表达式">
+                            <el-input v-model="provider.key_patterns[0]" placeholder="AIzaSy[A-Za-z0-9\\-_]{33}"></el-input>
+                            <small style="color: #909399;">注意：双斜杠需要转义为四个斜杠</small>
+                        </el-form-item>
+
+                        <el-form-item label="GPT Load 分组">
+                            <el-input v-model="provider.gpt_load_group_name" placeholder="例如: gemini_daye"></el-input>
+                        </el-form-item>
+
+                        <el-form-item label="跳过 AI 分析">
+                            <el-switch v-model="provider.skip_ai_analysis"></el-switch>
+                        </el-form-item>
+                    </el-form>
+                </div>
+
+                <el-button type="primary" @click="addProvider">添加供应商</el-button>
+                <el-button type="success" @click="saveAIProviders">保存 AI 供应商配置</el-button>
+            </div>
+
+            <!-- GitHub 配置 -->
+            <div class="config-section">
+                <div class="section-title">GitHub 配置</div>
+
+                <el-form label-width="150px">
+                    <el-form-item label="GitHub Tokens">
+                        <el-input
+                            v-model="githubTokensText"
+                            type="textarea"
+                            :rows="5"
+                            placeholder="每行一个 token，或使用逗号分隔"
+                        ></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="代理列表">
+                        <el-input
+                            v-model="githubProxyText"
+                            type="textarea"
+                            :rows="3"
+                            placeholder="每行一个代理，或使用逗号分隔&#10;例如: http://127.0.0.1:7890"
+                        ></el-input>
+                    </el-form-item>
+
+                    <el-button type="success" @click="saveGithubConfig">保存 GitHub 配置</el-button>
+                </el-form>
+            </div>
+
+            <!-- 同步配置 -->
+            <div class="config-section">
+                <div class="section-title">同步配置</div>
+
+                <el-form label-width="180px">
+                    <h4>Gemini Balancer</h4>
+                    <el-form-item label="启用 Gemini Balancer">
+                        <el-switch v-model="config.sync.gemini_balancer_enabled"></el-switch>
+                    </el-form-item>
+
+                    <el-form-item label="Balancer URL">
+                        <el-input v-model="config.sync.gemini_balancer_url" placeholder="https://your-balancer.com"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="Balancer Auth">
+                        <el-input v-model="config.sync.gemini_balancer_auth" placeholder="your-auth-key" show-password></el-input>
+                    </el-form-item>
+
+                    <el-divider></el-divider>
+
+                    <h4>GPT Load Balancer</h4>
+                    <el-form-item label="启用 GPT Load">
+                        <el-switch v-model="config.sync.gpt_load_enabled"></el-switch>
+                    </el-form-item>
+
+                    <el-form-item label="GPT Load URL">
+                        <el-input v-model="config.sync.gpt_load_url" placeholder="https://your-gpt-load.com"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="GPT Load Auth">
+                        <el-input v-model="config.sync.gpt_load_auth" placeholder="your-auth-key" show-password></el-input>
+                    </el-form-item>
+
+                    <el-button type="success" @click="saveSyncConfig">保存同步配置</el-button>
+                </el-form>
+            </div>
+
+            <!-- 搜索配置 -->
+            <div class="config-section">
+                <div class="section-title">搜索配置</div>
+
+                <el-form label-width="180px">
+                    <el-form-item label="日期范围（天）">
+                        <el-input-number v-model="config.search.date_range_days" :min="1" :max="3650"></el-input-number>
+                        <small style="color: #909399; margin-left: 10px;">过滤超过指定天数的旧仓库</small>
+                    </el-form-item>
+
+                    <el-form-item label="文件路径黑名单">
+                        <el-input
+                            v-model="searchBlacklistText"
+                            type="textarea"
+                            :rows="3"
+                            placeholder="每行一个关键词，或使用逗号分隔&#10;例如: readme, docs, example"
+                        ></el-input>
+                        <small style="color: #909399;">跳过包含这些关键词的文件路径</small>
+                    </el-form-item>
+
+                    <el-button type="success" @click="saveSearchConfig">保存搜索配置</el-button>
+                </el-form>
+            </div>
+
+            <!-- AI 分析配置 -->
+            <div class="config-section">
+                <div class="section-title">AI 分析配置</div>
+
+                <el-form label-width="180px">
+                    <el-form-item label="启用 AI 分析">
+                        <el-switch v-model="config.ai_analysis.enabled"></el-switch>
+                        <small style="color: #909399; margin-left: 10px;">当所有供应商都无效时，使用 AI 分析文件内容</small>
+                    </el-form-item>
+
+                    <el-form-item label="AI API URL">
+                        <el-input v-model="config.ai_analysis.url" placeholder="https://api.openai.com/v1"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="AI 模型">
+                        <el-input v-model="config.ai_analysis.model" placeholder="gpt-4o-mini"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="AI API Key">
+                        <el-input v-model="config.ai_analysis.api_key" placeholder="sk-..." show-password></el-input>
+                    </el-form-item>
+
+                    <el-button type="success" @click="saveAIAnalysisConfig">保存 AI 分析配置</el-button>
+                </el-form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const app = createApp({
+            data() {
+                return {
+                    loading: false,
+                    config: {
+                        ai_providers: [],
+                        sync: {
+                            gemini_balancer_enabled: false,
+                            gemini_balancer_url: '',
+                            gemini_balancer_auth: '',
+                            gpt_load_enabled: false,
+                            gpt_load_url: '',
+                            gpt_load_auth: ''
+                        },
+                        search: {
+                            date_range_days: 730,
+                            file_path_blacklist: []
+                        },
+                        ai_analysis: {
+                            enabled: false,
+                            url: '',
+                            model: 'gpt-4o-mini',
+                            api_key: ''
+                        },
+                        github: {
+                            tokens: [],
+                            proxy: []
+                        }
+                    },
+                    githubTokensText: '',
+                    githubProxyText: '',
+                    searchBlacklistText: ''
+                };
+            },
+            mounted() {
+                this.checkAuth();
+                this.loadConfig();
+            },
+            methods: {
+                checkAuth() {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) {
+                        window.location.href = '/login';
+                    }
+                },
+                async loadConfig() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/all', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.config = data;
+
+                            // 初始化表单文本
+                            this.githubTokensText = (data.github.tokens || []).join('\n');
+                            this.githubProxyText = (data.github.proxy || []).join('\n');
+                            this.searchBlacklistText = (data.search.file_path_blacklist || []).join(', ');
+
+                            // 确保 ai_providers 每个元素都有 key_patterns 数组
+                            this.config.ai_providers = (data.ai_providers || []).map(p => ({
+                                ...p,
+                                key_patterns: p.key_patterns || ['']
+                            }));
+                        } else if (response.status === 401) {
+                            this.$message.error('认证失败，请重新登录');
+                            localStorage.removeItem('access_token');
+                            window.location.href = '/login';
+                        }
+                    } catch (error) {
+                        this.$message.error('加载配置失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                addProvider() {
+                    this.config.ai_providers.push({
+                        name: '',
+                        type: 'gemini',
+                        check_model: '',
+                        api_endpoint: '',
+                        api_base_url: '',
+                        key_patterns: [''],
+                        gpt_load_group_name: '',
+                        skip_ai_analysis: false
+                    });
+                },
+                removeProvider(index) {
+                    this.config.ai_providers.splice(index, 1);
+                },
+                async saveAIProviders() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/ai_providers', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(this.config.ai_providers)
+                        });
+
+                        if (response.ok) {
+                            this.$message.success('AI 供应商配置保存成功');
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        this.$message.error('保存失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async saveGithubConfig() {
+                    this.loading = true;
+                    try {
+                        // 解析 tokens 和 proxy
+                        const tokens = this.githubTokensText
+                            .split(/[\n,]/)
+                            .map(t => t.trim())
+                            .filter(t => t);
+
+                        const proxy = this.githubProxyText
+                            .split(/[\n,]/)
+                            .map(p => p.trim())
+                            .filter(p => p);
+
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/github', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ tokens, proxy })
+                        });
+
+                        if (response.ok) {
+                            this.$message.success('GitHub 配置保存成功');
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        this.$message.error('保存失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async saveSyncConfig() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/sync', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(this.config.sync)
+                        });
+
+                        if (response.ok) {
+                            this.$message.success('同步配置保存成功');
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        this.$message.error('保存失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async saveSearchConfig() {
+                    this.loading = true;
+                    try {
+                        // 解析黑名单
+                        const blacklist = this.searchBlacklistText
+                            .split(/[\n,]/)
+                            .map(item => item.trim())
+                            .filter(item => item);
+
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/search', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                date_range_days: this.config.search.date_range_days,
+                                file_path_blacklist: blacklist
+                            })
+                        });
+
+                        if (response.ok) {
+                            this.$message.success('搜索配置保存成功');
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        this.$message.error('保存失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async saveAIAnalysisConfig() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/ai_analysis', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(this.config.ai_analysis)
+                        });
+
+                        if (response.ok) {
+                            this.$message.success('AI 分析配置保存成功');
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        this.$message.error('保存失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                logout() {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/login';
+                }
+            }
+        });
+
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html>

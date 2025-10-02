@@ -3,7 +3,7 @@ import re
 import requests
 from typing import Dict, List, Optional, Tuple, Any
 from common.Logger import logger
-from common.config import Config
+from common.config import config
 from app.providers.key_extractor import KeyExtractor
 
 
@@ -11,10 +11,10 @@ class AIAnalyzer:
     """AI分析服务，用于分析文件内容并提取API密钥和配置信息"""
     
     def __init__(self):
-        self.enabled = Config.AI_ANALYSIS_ENABLED
-        self.api_url = Config.AI_ANALYSIS_URL
-        self.model = Config.AI_ANALYSIS_MODEL
-        self.api_key = Config.AI_ANALYSIS_API_KEY
+        self.enabled = config.AI_ANALYSIS_ENABLED
+        self.api_url = config.AI_ANALYSIS_URL
+        self.model = config.AI_ANALYSIS_MODEL
+        self.api_key = config.AI_ANALYSIS_API_KEY
         # 检查是否启用了AI分析
         if self.enabled and (not self.api_url or not self.api_key):
             logger.warning("⚠️ AI分析已启用但缺少URL或API密钥配置")

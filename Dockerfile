@@ -1,4 +1,4 @@
-FROM registry-1.docker.io/library/python:3.11-slim
+FROM python:3.11-slim
 
 # 设置工作目录
 WORKDIR /app
@@ -6,21 +6,27 @@ WORKDIR /app
 # 设置环境变量
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV DATA_PATH=/app/data
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# 先复制依赖文件（利用 Docker 缓存层）
+COPY pyproject.toml ./
+
+# 安装 Python 依赖
+RUN pip install --no-cache-dir -e .
+
+# 复制项目代码（放在依赖安装之后）
 COPY . .
 
-# 先复制依赖文件
-COPY pyproject.toml uv.lock ./
+# 创建数据目录
+RUN mkdir -p /app/data /app/logs
 
-# 安装uv包管理器
-RUN pip install uv
+# 暴露端口
+EXPOSE 8000
 
-# 使用uv安装Python依赖
-RUN uv pip install --system --no-cache -r pyproject.toml
-
-# 启动命令
-CMD ["python", "app/hajimi_king.py"]
+# 启动命令（默认启动挖掘程序，可通过 docker-compose 覆盖）
+CMD ["python", "-m", "app.hajimi_king_db"]

@@ -19,10 +19,10 @@ class KeyExtractor:
         Returns:
             bool: 如果供应商配置了skip_ai_analysis且密钥格式匹配，返回True
         """
-        from common.config import Config
+        from common.config import config
         
         # 遍历所有供应商配置中的密钥模式
-        for provider_config in Config.AI_PROVIDERS_CONFIG:
+        for provider_config in config.AI_PROVIDERS_CONFIG:
             # 检查是否启用了跳过AI分析
             skip_ai_analysis = provider_config.get('skip_ai_analysis', False)
             if not skip_ai_analysis:

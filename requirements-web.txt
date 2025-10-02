@@ -1,0 +1,13 @@
+# Web Dashboard Dependencies
+
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+sqlalchemy>=2.0.0
+cryptography>=41.0.0
+python-dotenv>=1.0.0
+
+# 已有的依赖（从 pyproject.toml）
+google-generativeai>=0.8.5
+requests>=2.32.4
+openai>=1.0.0
+httpx>=0.27.0
