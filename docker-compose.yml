@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 挖掘程序
   miner:
@@ -8,6 +6,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -27,11 +27,13 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
     ports:
-      - "8000:8000"
+      - "8787:8787"
     command: python start_web.py
     networks:
       - hajimi-network

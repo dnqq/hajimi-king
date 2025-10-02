@@ -7,10 +7,14 @@ WORKDIR /app
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV DATA_PATH=/app/data
+ENV TZ=Asia/Shanghai
 
-# 安装系统依赖
+# 安装系统依赖和时区数据
 RUN apt-get update && apt-get install -y \
     curl \
+    tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
 # 先复制依赖文件（利用 Docker 缓存层）
@@ -26,7 +30,7 @@ COPY . .
 RUN mkdir -p /app/data /app/logs
 
 # 暴露端口
-EXPOSE 8000
+EXPOSE 8787
 
 # 启动命令（默认启动挖掘程序，可通过 docker-compose 覆盖）
 CMD ["python", "-m", "app.hajimi_king_db"]

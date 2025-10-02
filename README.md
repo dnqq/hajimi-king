@@ -140,8 +140,8 @@ python init_db.py
 start_all.bat
 
 # 6. 访问服务
-# Web Dashboard: http://localhost:8000/login
-# API 文档: http://localhost:8000/docs
+# Web Dashboard: http://localhost:8787/login
+# API 文档: http://localhost:8787/docs
 ```
 
 **停止服务：**
@@ -216,7 +216,7 @@ docker-compose up -d
 docker-compose logs -f
 
 # 5. 访问服务
-# Web Dashboard: http://localhost:8000/login
+# Web Dashboard: http://localhost:8787/login
 ```
 
 #### Docker Compose 配置说明
@@ -282,7 +282,7 @@ docker run -d \
   --env-file .env \
   -v $(pwd)/data:/app/data \
   -v $(pwd)/logs:/app/logs \
-  -p 8000:8000 \
+  -p 8787:8787 \
   hajimi-king:latest \
   python start_web.py
 ```
@@ -312,7 +312,7 @@ DATA_PATH=data
 
 **所有业务配置都在 Web 界面管理（📊 仪表盘、🔑 密钥管理、📈 统计分析、⚙️ 系统配置）：**
 
-1. **启动服务后访问：** http://localhost:8000/login
+1. **启动服务后访问：** http://localhost:8787/login
 2. **使用 `WEB_ACCESS_KEY` 登录**
 3. **在"⚙️ 系统配置"页面添加：**
    - **GitHub Tokens** - 用于搜索 GitHub 代码
@@ -643,18 +643,18 @@ data/
 ### 访问数据
 
 **方式 1：Web Dashboard**
-- 访问 http://localhost:8000
+- 访问 http://localhost:8787
 - 查看统计数据、密钥列表、配置管理
 
 **方式 2：API 接口**
 ```bash
 # 获取统计数据
 curl -H "Authorization: Bearer your_access_key" \
-  http://localhost:8000/api/stats/summary
+  http://localhost:8787/api/stats/summary
 
 # 获取密钥列表
 curl -H "Authorization: Bearer your_access_key" \
-  http://localhost:8000/api/keys?status=valid
+  http://localhost:8787/api/keys?status=valid
 ```
 
 **方式 3：直接查询数据库**
@@ -687,7 +687,7 @@ sqlite3 data/hajimi_king.db "SELECT * FROM api_keys WHERE status='valid' LIMIT 1
 **A:** GitHub 和 AI API 对高频访问有限制，使用代理可以避免 IP 被封。推荐使用 [warp-docker](https://github.com/cmj2002/warp-docker)。
 
 ### Q: 如何查看找到的密钥？
-**A:** 访问 Web Dashboard (http://localhost:8000)，或使用 API 接口查询数据库。所有密钥都加密存储在 SQLite 数据库中。
+**A:** 访问 Web Dashboard (http://localhost:8787)，或使用 API 接口查询数据库。所有密钥都加密存储在 SQLite 数据库中。
 
 ### Q: 支持哪些 AI 平台？
 **A:** 默认支持 Gemini、OpenAI、OpenRouter、Cerebras。可通过配置添加任何 OpenAI 兼容的平台。

@@ -21,7 +21,7 @@ def main():
     uvicorn.run(
         "web.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8787,
         reload=True,  # 开发模式，自动重载
         log_level="info"
     )
