@@ -14,7 +14,8 @@ from common.Logger import logger
 def init_database():
     """初始化数据库（如果需要）"""
     from common.config import config
-    from web.models import Base, engine
+    from web.models import Base, engine, SystemConfig
+    from web.database import SessionLocal
     from utils.config_loader import config_loader
 
     db_path = os.path.join(config.DATA_PATH, "hajimi_king.db")
@@ -32,29 +33,48 @@ def init_database():
     if not providers:
         logger.info("🔧 No providers found, adding defaults...")
 
-        # Gemini
-        config_loader.add_or_update_provider({
-            "name": "gemini",
-            "type": "gemini",
-            "check_model": "gemini-2.0-flash-exp",
-            "api_endpoint": "generativelanguage.googleapis.com",
-            "key_patterns": ["AIzaSy[A-Za-z0-9\\-_]{33}"],
-            "gpt_load_group_name": "",
-            "skip_ai_analysis": True
-        })
+        # 默认供应商配置
+        default_providers = [
+            {
+                "name": "gemini",
+                "type": "gemini",
+                "check_model": "gemini-2.0-flash-exp",
+                "api_endpoint": "generativelanguage.googleapis.com",
+                "key_patterns": ["AIzaSy[A-Za-z0-9\\-_]{33}"],
+                "gpt_load_group_name": "",
+                "skip_ai_analysis": True
+            },
+            {
+                "name": "openai",
+                "type": "openai_style",
+                "check_model": "gpt-3.5-turbo",
+                "api_base_url": "https://api.openai.com/v1",
+                "key_patterns": ["sk-[A-Za-z0-9\\-_]{20,100}"],
+                "gpt_load_group_name": "",
+                "skip_ai_analysis": False
+            }
+        ]
 
-        # OpenAI
-        config_loader.add_or_update_provider({
-            "name": "openai",
-            "type": "openai_style",
-            "check_model": "gpt-3.5-turbo",
-            "api_base_url": "https://api.openai.com/v1",
-            "key_patterns": ["sk-[A-Za-z0-9\\-_]{20,100}"],
-            "gpt_load_group_name": "",
-            "skip_ai_analysis": False
-        })
-
-        logger.info("✅ Default providers (Gemini, OpenAI) added")
+        # 写入 system_config 表
+        db = SessionLocal()
+        try:
+            config_entry = db.query(SystemConfig).filter_by(key='ai_providers').first()
+            if config_entry:
+                config_entry.value = default_providers
+            else:
+                config_entry = SystemConfig(
+                    key='ai_providers',
+                    value=default_providers,
+                    description='AI Provider Configurations'
+                )
+                db.add(config_entry)
+            db.commit()
+            logger.info("✅ Default providers (Gemini, OpenAI) added")
+        except Exception as e:
+            logger.error(f"❌ Failed to add default providers: {e}")
+            db.rollback()
+        finally:
+            db.close()
     else:
         logger.info(f"✅ Database ready with {len(providers)} provider(s)")
 
