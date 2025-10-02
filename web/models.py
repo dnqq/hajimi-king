@@ -4,7 +4,10 @@ SQLAlchemy ORM 模型定义
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Index, JSON
 from sqlalchemy.orm import relationship
-from web.database import Base
+from web.database import Base, engine
+
+# 导出 engine 供外部使用
+__all__ = ['Base', 'engine', 'APIKey', 'ScannedFile', 'ScanTask', 'SyncLog', 'SystemConfig', 'DailyStat', 'GitHubToken', 'AIProvider', 'SearchConfig', 'AIAnalysisConfig', 'SyncConfigModel']
 
 
 class APIKey(Base):

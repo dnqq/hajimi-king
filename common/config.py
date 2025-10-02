@@ -226,6 +226,25 @@ class Config:
             'https': proxy_url
         }
 
+    def check(self) -> bool:
+        """
+        检查必要的配置是否存在
+        在数据库模式下，只检查核心配置
+        """
+        # 检查核心配置
+        if not self.ENCRYPTION_KEY:
+            logger.error("❌ ENCRYPTION_KEY not configured in .env")
+            return False
+
+        # 检查数据路径
+        if not os.path.exists(self.DATA_PATH):
+            logger.info(f"📁 Creating data directory: {self.DATA_PATH}")
+            os.makedirs(self.DATA_PATH, exist_ok=True)
+
+        logger.info("✅ Core configuration check passed")
+        logger.info("💡 Business configurations (GitHub tokens, AI providers) are loaded from database")
+        return True
+
 
 # 全局配置实例
 config = Config()

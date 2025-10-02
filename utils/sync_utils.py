@@ -460,15 +460,18 @@ class SyncUtils:
         self.batch_timer.start()
 
     def _batch_send_worker(self) -> None:
-        """批量发送worker"""
+        """批量发送worker - 数据库模式下禁用"""
+        logger.info("📥 Batch send worker started (disabled in database mode)")
+        return  # 数据库模式下禁用此功能，同步由 Web 界面手动触发
+
+        # 以下代码仅在文件模式下使用
         while self.saving_checkpoint:
             logger.info(f"📥 Checkpoint is currently being saving, waiting before batch sending...")
             time.sleep(1)
 
         self.saving_checkpoint = True
         try:
-            # 加载checkpoint
-            logger.info(f"📥 Starting batch sending, wait_send_balancer length: {len(checkpoint.wait_send_balancer)}, wait_send_gpt_load length: {len(checkpoint.wait_send_gpt_load)}")
+            logger.info(f"📥 Starting batch sending (disabled)")
             # 发送gemini balancer队列
             if checkpoint.wait_send_balancer and self.balancer_enabled:
                 balancer_keys = list(checkpoint.wait_send_balancer)
