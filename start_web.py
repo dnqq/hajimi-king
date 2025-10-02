@@ -27,10 +27,15 @@ def init_database():
         Base.metadata.create_all(bind=engine)
         logger.info("✅ Database tables created")
 
-    # 检查是否需要添加默认供应商
-    providers = config_loader.get_ai_providers()
+    # 检查是否需要添加默认供应商（直接查询数据库，不使用 get_ai_providers 的默认值）
+    db = SessionLocal()
+    try:
+        config_entry = db.query(SystemConfig).filter_by(key='ai_providers').first()
+        has_providers = config_entry is not None and config_entry.value
+    finally:
+        db.close()
 
-    if not providers:
+    if not has_providers:
         logger.info("🔧 No providers found, adding defaults...")
 
         # 默认供应商配置
@@ -76,6 +81,8 @@ def init_database():
         finally:
             db.close()
     else:
+        # 重新读取确认供应商数量
+        providers = config_loader.get_ai_providers()
         logger.info(f"✅ Database ready with {len(providers)} provider(s)")
 
 def main():
