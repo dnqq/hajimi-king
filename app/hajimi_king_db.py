@@ -292,6 +292,37 @@ def main():
 
     # 4. 显示系统信息
     search_queries = file_manager.get_search_queries()
+
+    # 如果没有自定义查询，从供应商的 key_patterns 自动生成
+    if not search_queries:
+        logger.info("📝 No custom queries found, generating from provider patterns...")
+        search_queries = []
+        providers = config.AI_PROVIDERS_CONFIG
+        languages = ['python', 'javascript', 'go', 'java', 'typescript']
+
+        for provider in providers:
+            patterns = provider.get('key_patterns', [])
+            for pattern in patterns:
+                # 从正则提取关键前缀（如 AIzaSy, sk-proj）
+                if pattern.startswith('AIzaSy'):
+                    prefix = 'AIzaSy'
+                elif pattern.startswith('sk-'):
+                    prefix = 'sk-'
+                else:
+                    # 尝试提取前6个非正则字符
+                    import re
+                    match = re.match(r'^([A-Za-z0-9\-_]{3,10})', pattern)
+                    if match:
+                        prefix = match.group(1)
+                    else:
+                        continue
+
+                # 为每个语言生成查询
+                for lang in languages:
+                    search_queries.append(f'{prefix} language:{lang}')
+
+        logger.info(f"✅ Generated {len(search_queries)} queries from {len(providers)} provider(s)")
+
     logger.info("📋 SYSTEM INFORMATION:")
     logger.info(f"🔑 GitHub tokens: {len(config.GITHUB_TOKENS)} configured")
     logger.info(f"🔍 Search queries: {len(search_queries)} loaded")
