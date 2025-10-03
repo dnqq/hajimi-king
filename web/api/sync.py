@@ -102,21 +102,21 @@ async def trigger_sync(target: str):
 
             # 根据目标执行同步
             if target == 'balancer':
-                result = sync_utils._sync_to_balancer([decrypted_key])
-                if result:
+                result = sync_utils._send_balancer_worker([decrypted_key])
+                if result == "success":
                     db_manager.mark_key_synced(key_obj.id, 'balancer', success=True)
                     success_count += 1
                 else:
-                    db_manager.mark_key_synced(key_obj.id, 'balancer', success=False, error_message="Sync failed")
+                    db_manager.mark_key_synced(key_obj.id, 'balancer', success=False, error_message=result)
                     fail_count += 1
 
             elif target == 'gpt_load':
-                result = sync_utils._sync_to_gpt_load([decrypted_key], key_obj.provider, key_obj.gpt_load_group_name)
-                if result:
+                result = sync_utils._send_gpt_load_worker([decrypted_key], key_obj.gpt_load_group_name or "")
+                if result == "success":
                     db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=True)
                     success_count += 1
                 else:
-                    db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=False, error_message="Sync failed")
+                    db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=False, error_message=result)
                     fail_count += 1
 
         except Exception as e:
