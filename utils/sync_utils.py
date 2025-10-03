@@ -441,7 +441,7 @@ class SyncUtils:
             file_manager.save_keys_send_result(keys, send_result)
             return "json_decode_error"
         except Exception as e:
-            logger.error(f"❌ Failed to send keys to GPT load balancer: {str(e)}", exc_info=True)
+            logger.error(f"❌ Failed to send keys to GPT load balancer: {str(e)}")
             send_result = {key: "exception" for key in keys}
             file_manager.save_keys_send_result(keys, send_result)
             return "exception"
