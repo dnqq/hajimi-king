@@ -220,7 +220,7 @@ class SyncUtils:
                         send_result[key] = "ok"
                         keys_to_log.append(key)
                 if keys_to_log:  # 只有当有需要记录的密钥时才记录
-                    file_manager.save_keys_send_result(keys_to_log, send_result)
+                # file_manager.save_keys_send_result(keys_to_log, send_result)
                 return "update_failed"
 
 
@@ -229,7 +229,7 @@ class SyncUtils:
             # 保存发送结果日志 - 只记录实际新增的密钥
             send_result = {key: "ok" for key in new_add_keys_set}
             if send_result:  # 只有当有新增密钥时才记录
-                file_manager.save_keys_send_result(list(new_add_keys_set), send_result)
+                # file_manager.save_keys_send_result(list(new_add_keys_set), send_result)
             
             return "ok"
 
@@ -237,26 +237,26 @@ class SyncUtils:
             logger.error("❌ Request timeout when connecting to balancer")
             # 保存发送结果日志 - 所有密钥都失败
             send_result = {key: "timeout" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "timeout"
         except requests.exceptions.ConnectionError:
             logger.error("❌ Connection failed to balancer")
             # 保存发送结果日志 - 所有密钥都失败
             send_result = {key: "connection_error" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "connection_error"
         except json.JSONDecodeError as e:
             logger.error(f"❌ Invalid JSON response from balancer: {str(e)}")
             # 保存发送结果日志 - 所有密钥都失败
             send_result = {key: "json_decode_error" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "json_decode_error"
         except Exception as e:
             logger.error(f"❌ Failed to send keys to balancer: {str(e)}")
             traceback.print_exc()
             # 保存发送结果日志 - 所有密钥都失败
             send_result = {key: "exception" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "exception"
 
     def _get_gpt_load_group_id(self, group_name: str) -> Optional[int]:
@@ -416,34 +416,34 @@ class SyncUtils:
                 logger.info(f"✅ Successfully sent keys to all {len(target_group_names)} group(s)")
                 # 保存发送结果日志 - 所有密钥都成功
                 send_result = {key: "ok" for key in keys}
-                file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
                 return "ok"
             else:
                 logger.error(f"❌ Failed to send keys to {len(failed_groups)} group(s): {', '.join(failed_groups)}")
                 # 保存发送结果日志 - 部分或全部失败
                 send_result = {key: f"partial_failure_{len(failed_groups)}_groups" for key in keys}
-                file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
                 return "partial_failure"
 
         except requests.exceptions.Timeout:
             logger.error("❌ Request timeout when connecting to GPT load balancer")
             send_result = {key: "timeout" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "timeout"
         except requests.exceptions.ConnectionError:
             logger.error("❌ Connection failed to GPT load balancer")
             send_result = {key: "connection_error" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "connection_error"
         except json.JSONDecodeError as e:
             logger.error(f"❌ Invalid JSON response from GPT load balancer: {str(e)}")
             send_result = {key: "json_decode_error" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "json_decode_error"
         except Exception as e:
             logger.error(f"❌ Failed to send keys to GPT load balancer: {str(e)}")
             send_result = {key: "exception" for key in keys}
-            file_manager.save_keys_send_result(keys, send_result)
+                # file_manager.save_keys_send_result(keys, send_result)
             return "exception"
 
     def _start_batch_sender(self) -> None:
