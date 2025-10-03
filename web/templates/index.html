@@ -184,6 +184,9 @@
         .sync-stat-value.success {
             color: #67c23a;
         }
+        .sync-stat-value.info {
+            color: #409eff;
+        }
     </style>
 </head>
 <body>
@@ -308,8 +311,12 @@
                                     <span class="sync-stat-value pending">{{ syncStatus.balancer?.pending_count || 0 }}</span>
                                 </div>
                                 <div class="sync-stat-item">
-                                    <span class="sync-stat-label">最近1小时</span>
-                                    <span class="sync-stat-value success">{{ syncStatus.balancer?.recent_synced || 0 }}</span>
+                                    <span class="sync-stat-label">已同步</span>
+                                    <span class="sync-stat-value success">{{ syncStatus.balancer?.total_synced || 0 }}</span>
+                                </div>
+                                <div class="sync-stat-item">
+                                    <span class="sync-stat-label">24小时同步</span>
+                                    <span class="sync-stat-value info">{{ syncStatus.balancer?.synced_24h || 0 }}</span>
                                 </div>
                             </div>
                         </div>
@@ -326,8 +333,12 @@
                                     <span class="sync-stat-value pending">{{ syncStatus.gpt_load?.pending_count || 0 }}</span>
                                 </div>
                                 <div class="sync-stat-item">
-                                    <span class="sync-stat-label">最近1小时</span>
-                                    <span class="sync-stat-value success">{{ syncStatus.gpt_load?.recent_synced || 0 }}</span>
+                                    <span class="sync-stat-label">已同步</span>
+                                    <span class="sync-stat-value success">{{ syncStatus.gpt_load?.total_synced || 0 }}</span>
+                                </div>
+                                <div class="sync-stat-item">
+                                    <span class="sync-stat-label">24小时同步</span>
+                                    <span class="sync-stat-value info">{{ syncStatus.gpt_load?.synced_24h || 0 }}</span>
                                 </div>
                             </div>
                         </div>

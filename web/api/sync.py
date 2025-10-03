@@ -33,21 +33,34 @@ async def get_sync_status(db: Session = Depends(get_db)):
     from web.models import APIKey
     from sqlalchemy import func, and_
 
-    # 最近同步统计
+    # 时间范围
     from datetime import datetime, timedelta
+    time_24h = datetime.utcnow() - timedelta(hours=24)
 
-    recent_time = datetime.utcnow() - timedelta(hours=1)
-
-    recent_balancer_success = db.query(func.count(SyncLog.id)).filter(
+    # Balancer 统计
+    # 24小时内同步成功的数量
+    balancer_synced_24h = db.query(func.count(SyncLog.id)).filter(
         SyncLog.target_service == 'gemini_balancer',
         SyncLog.status == 'success',
-        SyncLog.synced_at >= recent_time
+        SyncLog.synced_at >= time_24h
     ).scalar() or 0
 
-    recent_gpt_load_success = db.query(func.count(SyncLog.id)).filter(
+    # 总共已同步的数量（状态为valid且已同步到balancer）
+    total_balancer_synced = db.query(func.count(APIKey.id)).filter(
+        APIKey.synced_to_balancer == True
+    ).scalar() or 0
+
+    # GPT Load 统计
+    # 24小时内同步成功的数量
+    gpt_load_synced_24h = db.query(func.count(SyncLog.id)).filter(
         SyncLog.target_service == 'gpt_load',
         SyncLog.status == 'success',
-        SyncLog.synced_at >= recent_time
+        SyncLog.synced_at >= time_24h
+    ).scalar() or 0
+
+    # 总共已同步的数量（状态为valid且已同步到gpt_load）
+    total_gpt_load_synced = db.query(func.count(APIKey.id)).filter(
+        APIKey.synced_to_gpt_load == True
     ).scalar() or 0
 
     # 获取待同步密钥数量（不限制数量）
@@ -79,11 +92,13 @@ async def get_sync_status(db: Session = Depends(get_db)):
     return {
         "balancer": {
             "pending_count": pending_balancer_count,
-            "recent_synced": recent_balancer_success
+            "total_synced": total_balancer_synced,
+            "synced_24h": balancer_synced_24h
         },
         "gpt_load": {
             "pending_count": pending_gpt_load_count,
-            "recent_synced": recent_gpt_load_success
+            "total_synced": total_gpt_load_synced,
+            "synced_24h": gpt_load_synced_24h
         }
     }
 
