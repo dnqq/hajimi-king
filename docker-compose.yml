@@ -11,7 +11,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    command: python -m app.hajimi_king_db
+    command: python -m app.hajimi_king_threaded
     networks:
       - hajimi-network
     logging:

@@ -33,4 +33,4 @@ RUN mkdir -p /app/data /app/logs
 EXPOSE 8787
 
 # 启动命令（默认启动挖掘程序，可通过 docker-compose 覆盖）
-CMD ["python", "-m", "app.hajimi_king_db"]
+CMD ["python", "-m", "app.hajimi_king_threaded"]
