@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
+from common.Logger import logger
 from web.database import get_db
 from web.models import SyncLog
 from web.schemas import SyncLogResponse

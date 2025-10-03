@@ -461,8 +461,8 @@ class SyncUtils:
 
     def _batch_send_worker(self) -> None:
         """批量发送worker - 数据库模式下禁用"""
-        logger.info("📥 Batch send worker started (disabled in database mode)")
-        return  # 数据库模式下禁用此功能，同步由 Web 界面手动触发
+        # 数据库模式下禁用此功能，同步由 Web 界面手动触发
+        return
 
         # 以下代码仅在文件模式下使用
         while self.saving_checkpoint:
