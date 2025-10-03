@@ -29,13 +29,11 @@ async def get_sync_status(db: Session = Depends(get_db)):
     获取同步状态
     """
     from utils.db_manager import db_manager
-
-    # 获取待同步密钥
-    pending_balancer = db_manager.get_pending_sync_keys('balancer', limit=10)
-    pending_gpt_load = db_manager.get_pending_sync_keys('gpt_load', limit=10)
+    from common.config import config
+    from web.models import APIKey
+    from sqlalchemy import func, and_
 
     # 最近同步统计
-    from sqlalchemy import func
     from datetime import datetime, timedelta
 
     recent_time = datetime.utcnow() - timedelta(hours=1)
@@ -52,13 +50,35 @@ async def get_sync_status(db: Session = Depends(get_db)):
         SyncLog.synced_at >= recent_time
     ).scalar() or 0
 
+    # 获取待同步密钥数量（不限制数量）
+    # Balancer: 只有启用时才统计
+    if config.GEMINI_BALANCER_SYNC_ENABLED:
+        pending_balancer_count = db.query(func.count(APIKey.id)).filter(
+            and_(APIKey.status == 'valid', APIKey.synced_to_balancer == False)
+        ).scalar() or 0
+    else:
+        pending_balancer_count = 0
+
+    # GPT Load: 只统计配置了 gpt_load_group_name 的 key
+    if config.GPT_LOAD_SYNC_ENABLED:
+        pending_gpt_load_count = db.query(func.count(APIKey.id)).filter(
+            and_(
+                APIKey.status == 'valid',
+                APIKey.synced_to_gpt_load == False,
+                APIKey.gpt_load_group_name != None,
+                APIKey.gpt_load_group_name != ''
+            )
+        ).scalar() or 0
+    else:
+        pending_gpt_load_count = 0
+
     return {
         "balancer": {
-            "pending_count": len(pending_balancer),
+            "pending_count": pending_balancer_count,
             "recent_synced": recent_balancer_success
         },
         "gpt_load": {
-            "pending_count": len(pending_gpt_load),
+            "pending_count": pending_gpt_load_count,
             "recent_synced": recent_gpt_load_success
         }
     }
@@ -111,7 +131,13 @@ async def trigger_sync(target: str):
                     fail_count += 1
 
             elif target == 'gpt_load':
-                result = sync_utils._send_gpt_load_worker([decrypted_key], key_obj.gpt_load_group_name or "")
+                # 检查是否配置了 group_name
+                if not key_obj.gpt_load_group_name or not key_obj.gpt_load_group_name.strip():
+                    logger.warning(f"⚠️ Skipping key {key_obj.id}: no gpt_load_group_name configured")
+                    fail_count += 1
+                    continue
+
+                result = sync_utils._send_gpt_load_worker([decrypted_key], key_obj.gpt_load_group_name)
                 if result == "success":
                     db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=True)
                     success_count += 1
