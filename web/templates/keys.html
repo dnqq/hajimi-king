@@ -90,6 +90,17 @@
 
             <!-- 密钥表格 -->
             <div class="table-container">
+                <!-- 批量操作 -->
+                <div v-if="selectedKeys.length > 0" style="margin-bottom: 20px;">
+                    <el-space wrap>
+                        <el-text>已选择 {{ selectedKeys.length }} 个密钥</el-text>
+                        <el-button type="primary" @click="showChangeProviderDialog">更改供应商</el-button>
+                        <el-button type="warning" @click="batchRevalidate">重新校验</el-button>
+                        <el-button type="success" @click="batchSync">同步</el-button>
+                        <el-button type="danger" @click="batchDelete">批量删除</el-button>
+                    </el-space>
+                </div>
+
                 <el-table
                     :data="keys"
                     stripe
@@ -152,17 +163,6 @@
                     @size-change="loadKeys"
                     style="margin-top: 20px; justify-content: flex-end;"
                 />
-
-                <!-- 批量操作 -->
-                <div v-if="selectedKeys.length > 0" style="margin-top: 20px;">
-                    <el-space wrap>
-                        <el-text>已选择 {{ selectedKeys.length }} 个密钥</el-text>
-                        <el-button type="primary" @click="showChangeProviderDialog">更改供应商</el-button>
-                        <el-button type="warning" @click="batchRevalidate">重新校验</el-button>
-                        <el-button type="success" @click="batchSync">同步</el-button>
-                        <el-button type="danger" @click="batchDelete">批量删除</el-button>
-                    </el-space>
-                </div>
             </div>
         </div>
 
