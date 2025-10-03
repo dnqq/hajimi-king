@@ -86,7 +86,7 @@ class TaskScheduler:
                         break
 
                     try:
-                        result = github_client.search_code(query)
+                        result = github_client.search_for_keys(query)
 
                         if result and "items" in result:
                             for item in result["items"]:
