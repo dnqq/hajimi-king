@@ -16,6 +16,20 @@ from common.Logger import logger
 router = APIRouter()
 
 
+@router.get("/providers")
+async def get_providers(db: Session = Depends(get_db)):
+    """
+    获取所有供应商列表（去重）
+    """
+    try:
+        results = db.query(APIKey.provider).distinct().all()
+        providers = [row[0] for row in results if row[0]]
+        return sorted(providers)
+    except Exception as e:
+        logger.error(f"Failed to get providers: {e}")
+        return []
+
+
 @router.get("/", response_model=PaginatedResponse)
 async def list_keys(
     page: int = Query(1, ge=1, description="页码"),

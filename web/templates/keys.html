@@ -54,10 +54,7 @@
                 <el-row :gutter="20">
                     <el-col :span="4">
                         <el-select v-model="filters.provider" placeholder="供应商" clearable @change="loadKeys">
-                            <el-option label="Gemini" value="gemini"></el-option>
-                            <el-option label="OpenAI" value="openai"></el-option>
-                            <el-option label="OpenRouter" value="openrouter"></el-option>
-                            <el-option label="Cerebras" value="cerebras"></el-option>
+                            <el-option v-for="provider in providers" :key="provider" :label="formatProviderName(provider)" :value="provider"></el-option>
                         </el-select>
                     </el-col>
                     <el-col :span="4">
@@ -177,10 +174,7 @@
             <el-form>
                 <el-form-item label="选择新供应商">
                     <el-select v-model="newProvider" placeholder="请选择供应商">
-                        <el-option label="Gemini" value="gemini"></el-option>
-                        <el-option label="OpenAI" value="openai"></el-option>
-                        <el-option label="OpenRouter" value="openrouter"></el-option>
-                        <el-option label="Cerebras" value="cerebras"></el-option>
+                        <el-option v-for="provider in providers" :key="provider" :label="formatProviderName(provider)" :value="provider"></el-option>
                     </el-select>
                 </el-form-item>
             </el-form>
@@ -234,6 +228,7 @@
                     keys: [],
                     selectedKeys: [],
                     loading: false,
+                    providers: [],
                     filters: {
                         provider: '',
                         status: '',
@@ -252,9 +247,28 @@
                 };
             },
             mounted() {
+                this.loadProviders();
                 this.loadKeys();
             },
             methods: {
+                async loadProviders() {
+                    try {
+                        const response = await fetch('/api/keys/providers');
+                        this.providers = await response.json();
+                    } catch (error) {
+                        console.error('加载供应商列表失败:', error);
+                    }
+                },
+                formatProviderName(provider) {
+                    const nameMap = {
+                        'gemini': 'Gemini',
+                        'openai': 'OpenAI',
+                        'openrouter': 'OpenRouter',
+                        'cerebras': 'Cerebras',
+                        'anthropic': 'Anthropic'
+                    };
+                    return nameMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+                },
                 async loadKeys() {
                     this.loading = true;
                     try {
