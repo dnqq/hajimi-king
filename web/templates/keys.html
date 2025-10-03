@@ -52,19 +52,25 @@
             <!-- 筛选栏 -->
             <div class="filter-bar">
                 <el-row :gutter="20">
-                    <el-col :span="6">
-                        <el-select v-model="filters.provider" placeholder="选择供应商" clearable @change="loadKeys">
+                    <el-col :span="4">
+                        <el-select v-model="filters.provider" placeholder="供应商" clearable @change="loadKeys">
                             <el-option label="Gemini" value="gemini"></el-option>
                             <el-option label="OpenAI" value="openai"></el-option>
                             <el-option label="OpenRouter" value="openrouter"></el-option>
                             <el-option label="Cerebras" value="cerebras"></el-option>
                         </el-select>
                     </el-col>
-                    <el-col :span="6">
-                        <el-select v-model="filters.status" placeholder="选择状态" clearable @change="loadKeys">
+                    <el-col :span="4">
+                        <el-select v-model="filters.status" placeholder="状态" clearable @change="loadKeys">
                             <el-option label="有效" value="valid"></el-option>
                             <el-option label="限流" value="rate_limited"></el-option>
                             <el-option label="无效" value="invalid"></el-option>
+                        </el-select>
+                    </el-col>
+                    <el-col :span="4">
+                        <el-select v-model="filters.sync_status" placeholder="同步状态" clearable @change="loadKeys">
+                            <el-option label="已同步" value="synced"></el-option>
+                            <el-option label="未同步" value="not_synced"></el-option>
                         </el-select>
                     </el-col>
                     <el-col :span="12">
@@ -149,10 +155,34 @@
 
                 <!-- 批量操作 -->
                 <div v-if="selectedKeys.length > 0" style="margin-top: 20px;">
-                    <el-button type="danger" @click="batchDelete">批量删除 ({{ selectedKeys.length }})</el-button>
+                    <el-space wrap>
+                        <el-text>已选择 {{ selectedKeys.length }} 个密钥</el-text>
+                        <el-button type="primary" @click="showChangeProviderDialog">更改供应商</el-button>
+                        <el-button type="warning" @click="batchRevalidate">重新校验</el-button>
+                        <el-button type="success" @click="batchSync">同步</el-button>
+                        <el-button type="danger" @click="batchDelete">批量删除</el-button>
+                    </el-space>
                 </div>
             </div>
         </div>
+
+        <!-- 更改供应商对话框 -->
+        <el-dialog v-model="changeProviderDialogVisible" title="更改供应商" width="400px">
+            <el-form>
+                <el-form-item label="选择新供应商">
+                    <el-select v-model="newProvider" placeholder="请选择供应商">
+                        <el-option label="Gemini" value="gemini"></el-option>
+                        <el-option label="OpenAI" value="openai"></el-option>
+                        <el-option label="OpenRouter" value="openrouter"></el-option>
+                        <el-option label="Cerebras" value="cerebras"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="changeProviderDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="confirmChangeProvider">确定</el-button>
+            </template>
+        </el-dialog>
 
         <!-- 密钥详情弹窗 -->
         <el-dialog v-model="detailDialogVisible" title="密钥详情" width="800px">
@@ -201,6 +231,7 @@
                     filters: {
                         provider: '',
                         status: '',
+                        sync_status: '',
                         search: ''
                     },
                     pagination: {
@@ -209,7 +240,9 @@
                         total: 0
                     },
                     detailDialogVisible: false,
-                    currentKey: null
+                    currentKey: null,
+                    changeProviderDialogVisible: false,
+                    newProvider: ''
                 };
             },
             mounted() {
@@ -226,6 +259,7 @@
 
                         if (this.filters.provider) params.append('provider', this.filters.provider);
                         if (this.filters.status) params.append('status', this.filters.status);
+                        if (this.filters.sync_status) params.append('sync_status', this.filters.sync_status);
                         if (this.filters.search) params.append('search', this.filters.search);
 
                         const response = await fetch(`/api/keys/?${params}`);
@@ -289,6 +323,91 @@
                     } catch (error) {
                         if (error !== 'cancel') {
                             ElMessage.error('批量删除失败');
+                        }
+                    }
+                },
+                showChangeProviderDialog() {
+                    this.newProvider = '';
+                    this.changeProviderDialogVisible = true;
+                },
+                async confirmChangeProvider() {
+                    if (!this.newProvider) {
+                        ElMessage.warning('请选择供应商');
+                        return;
+                    }
+
+                    try {
+                        const keyIds = this.selectedKeys.map(k => k.id);
+                        const response = await fetch('/api/keys/batch-update-provider', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ key_ids: keyIds, provider: this.newProvider })
+                        });
+
+                        if (response.ok) {
+                            ElMessage.success('供应商更改成功');
+                            this.changeProviderDialogVisible = false;
+                            this.loadKeys();
+                        } else {
+                            ElMessage.error('供应商更改失败');
+                        }
+                    } catch (error) {
+                        ElMessage.error('供应商更改失败');
+                    }
+                },
+                async batchRevalidate() {
+                    try {
+                        await ElMessageBox.confirm(`确定要重新校验选中的 ${this.selectedKeys.length} 个密钥吗？`, '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const keyIds = this.selectedKeys.map(k => k.id);
+                        const response = await fetch('/api/keys/batch-revalidate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(keyIds)
+                        });
+
+                        if (response.ok) {
+                            const result = await response.json();
+                            ElMessage.success(`重新校验完成: ${result.success_count} 成功`);
+                            this.loadKeys();
+                        } else {
+                            ElMessage.error('重新校验失败');
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('重新校验失败');
+                        }
+                    }
+                },
+                async batchSync() {
+                    try {
+                        await ElMessageBox.confirm(`确定要同步选中的 ${this.selectedKeys.length} 个密钥吗？`, '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const keyIds = this.selectedKeys.map(k => k.id);
+                        const response = await fetch('/api/keys/batch-sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(keyIds)
+                        });
+
+                        if (response.ok) {
+                            const result = await response.json();
+                            ElMessage.success(`同步完成: ${result.success_count} 成功, ${result.fail_count} 失败`);
+                            this.loadKeys();
+                        } else {
+                            ElMessage.error('同步失败');
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('同步失败');
                         }
                     }
                 },

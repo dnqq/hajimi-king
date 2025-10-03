@@ -21,6 +21,7 @@ async def list_keys(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     provider: Optional[str] = Query(None, description="按供应商筛选"),
     status: Optional[str] = Query(None, description="按状态筛选"),
+    sync_status: Optional[str] = Query(None, description="按同步状态筛选"),
     search: Optional[str] = Query(None, description="搜索仓库名或密钥"),
     db: Session = Depends(get_db)
 ):
@@ -35,6 +36,16 @@ async def list_keys(
 
     if status:
         query = query.filter(APIKey.status == status)
+
+    if sync_status:
+        if sync_status == 'synced':
+            query = query.filter(
+                or_(APIKey.synced_to_balancer == True, APIKey.synced_to_gpt_load == True)
+            )
+        elif sync_status == 'not_synced':
+            query = query.filter(
+                and_(APIKey.synced_to_balancer == False, APIKey.synced_to_gpt_load == False)
+            )
 
     if search:
         # 模糊查询：仓库名、文件路径、或解密后的密钥内容
@@ -208,6 +219,124 @@ async def batch_delete_keys(key_ids: List[int], db: Session = Depends(get_db)):
     db.commit()
 
     return {"success": True, "deleted_count": deleted_count}
+
+
+@router.post("/batch-update-provider")
+async def batch_update_provider(key_ids: List[int], new_provider: str, db: Session = Depends(get_db)):
+    """
+    批量更改供应商
+    """
+    updated_count = db.query(APIKey).filter(APIKey.id.in_(key_ids)).update(
+        {"provider": new_provider},
+        synchronize_session=False
+    )
+    db.commit()
+
+    return {"success": True, "updated_count": updated_count}
+
+
+@router.post("/batch-revalidate")
+async def batch_revalidate(key_ids: List[int], db: Session = Depends(get_db)):
+    """
+    批量重新校验密钥
+    """
+    from app.providers.config_based_factory import ConfigBasedAIProviderFactory
+    from utils.crypto import key_encryption
+
+    keys = db.query(APIKey).filter(APIKey.id.in_(key_ids)).all()
+
+    success_count = 0
+    fail_count = 0
+
+    for key_obj in keys:
+        try:
+            # 解密密钥
+            decrypted_key = key_encryption.decrypt_key(key_obj.key_encrypted)
+
+            # 获取 provider
+            provider = ConfigBasedAIProviderFactory.get_provider_by_name(key_obj.provider)
+            if not provider:
+                logger.error(f"Provider {key_obj.provider} not found for key {key_obj.id}")
+                fail_count += 1
+                continue
+
+            # 校验密钥
+            validation_result = provider.validate_key(decrypted_key)
+
+            if validation_result and "ok" in validation_result:
+                key_obj.status = 'valid'
+                success_count += 1
+            elif "rate_limited" in validation_result:
+                key_obj.status = 'rate_limited'
+                success_count += 1
+            else:
+                key_obj.status = 'invalid'
+                success_count += 1
+
+            key_obj.last_validated_at = datetime.utcnow()
+
+        except Exception as e:
+            logger.error(f"Failed to revalidate key {key_obj.id}: {e}")
+            fail_count += 1
+
+    db.commit()
+
+    return {
+        "success": True,
+        "total": len(keys),
+        "success_count": success_count,
+        "fail_count": fail_count
+    }
+
+
+@router.post("/batch-sync")
+async def batch_sync(key_ids: List[int], db: Session = Depends(get_db)):
+    """
+    批量同步密钥到 GPT Load
+    """
+    from utils.crypto import key_encryption
+    from utils.sync_utils import sync_utils
+    from utils.db_manager import db_manager
+    from app.providers.config_key_extractor import ConfigKeyExtractor
+
+    keys = db.query(APIKey).filter(APIKey.id.in_(key_ids)).all()
+
+    success_count = 0
+    fail_count = 0
+
+    for key_obj in keys:
+        try:
+            # 解密密钥
+            decrypted_key = key_encryption.decrypt_key(key_obj.key_encrypted)
+
+            # 实时获取 group_name
+            group_name = ConfigKeyExtractor.get_gpt_load_group_name(key_obj.provider)
+
+            if not group_name or not group_name.strip():
+                logger.warning(f"⚠️ Skipping key {key_obj.id}: provider '{key_obj.provider}' has no gpt_load_group_name configured")
+                fail_count += 1
+                continue
+
+            # 执行同步
+            result = sync_utils._send_gpt_load_worker([decrypted_key], group_name)
+
+            if result == "success":
+                db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=True)
+                success_count += 1
+            else:
+                db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=False, error_message=result)
+                fail_count += 1
+
+        except Exception as e:
+            logger.error(f"Failed to sync key {key_obj.id}: {e}")
+            fail_count += 1
+
+    return {
+        "success": True,
+        "total": len(keys),
+        "success_count": success_count,
+        "fail_count": fail_count
+    }
 
 
 @router.get("/export/csv")

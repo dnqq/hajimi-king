@@ -79,17 +79,12 @@
 
             <!-- 同步状态 -->
             <div class="chart-container">
-                <div class="chart-title">同步管理</div>
+                <div class="chart-title">同步状态</div>
                 <el-row :gutter="20">
                     <el-col :span="12">
                         <el-card>
                             <template #header>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Gemini Balancer</span>
-                                    <el-button type="primary" size="small" @click="syncToBalancer" :loading="syncing.balancer">
-                                        立即同步
-                                    </el-button>
-                                </div>
+                                <span>Gemini Balancer</span>
                             </template>
                             <div>
                                 <p>待同步: {{ syncStatus.balancer?.pending_count || 0 }} 个密钥</p>
@@ -100,12 +95,7 @@
                     <el-col :span="12">
                         <el-card>
                             <template #header>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>GPT Load</span>
-                                    <el-button type="primary" size="small" @click="syncToGptLoad" :loading="syncing.gpt_load">
-                                        立即同步
-                                    </el-button>
-                                </div>
+                                <span>GPT Load</span>
                             </template>
                             <div>
                                 <p>待同步: {{ syncStatus.gpt_load?.pending_count || 0 }} 个密钥</p>
@@ -137,11 +127,7 @@
                     providerStats: [],
                     dailyStats: [],
                     topRepos: [],
-                    syncStatus: {},
-                    syncing: {
-                        balancer: false,
-                        gpt_load: false
-                    }
+                    syncStatus: {}
                 };
             },
             mounted() {
@@ -285,46 +271,6 @@
                             itemStyle: { color: '#409eff' }
                         }]
                     });
-                },
-                async syncToBalancer() {
-                    this.syncing.balancer = true;
-                    try {
-                        const response = await fetch('/api/sync/trigger/balancer', {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            ElMessage.success(`同步完成: ${result.success_count} 成功, ${result.fail_count} 失败`);
-                            this.loadSyncStatus();
-                        } else {
-                            ElMessage.error(result.message);
-                        }
-                    } catch (error) {
-                        ElMessage.error('同步失败');
-                    } finally {
-                        this.syncing.balancer = false;
-                    }
-                },
-                async syncToGptLoad() {
-                    this.syncing.gpt_load = true;
-                    try {
-                        const response = await fetch('/api/sync/trigger/gpt_load', {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            ElMessage.success(`同步完成: ${result.success_count} 成功, ${result.fail_count} 失败`);
-                            this.loadSyncStatus();
-                        } else {
-                            ElMessage.error(result.message);
-                        }
-                    } catch (error) {
-                        ElMessage.error('同步失败');
-                    } finally {
-                        this.syncing.gpt_load = false;
-                    }
                 },
                 exportCSV() {
                     window.open('/api/export/csv', '_blank');
