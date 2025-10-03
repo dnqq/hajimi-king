@@ -255,7 +255,7 @@ class TaskScheduler:
 
             for key_obj in pending_keys:
                 try:
-                    from utils.key_encryption import key_encryption
+                    from utils.crypto import key_encryption
                     decrypted_key = key_encryption.decrypt_key(key_obj.key_encrypted)
 
                     result = sync_utils._send_gpt_load_worker([decrypted_key], key_obj.gpt_load_group_name or "")
