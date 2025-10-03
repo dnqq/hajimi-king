@@ -55,6 +55,26 @@
             color: #909399;
             font-size: 14px;
         }
+        .stat-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 12px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .stat-trend.up {
+            color: #67c23a;
+        }
+        .stat-trend.down {
+            color: #f56c6c;
+        }
+        .stat-trend.neutral {
+            color: #909399;
+        }
+        .stat-trend-icon {
+            font-size: 16px;
+        }
         .chart-container {
             background: #fff;
             padding: 24px;
@@ -82,11 +102,29 @@
             <div class="stat-cards">
                 <div class="stat-card">
                     <div class="stat-label">总密钥数</div>
-                    <div class="stat-value" style="color: #409eff;">{{ stats.total_keys || 0 }}</div>
+                    <div>
+                        <span class="stat-value" style="color: #409eff;">{{ stats.total_keys || 0 }}</span>
+                        <span v-if="stats.trends" :class="['stat-trend', stats.trends.total_keys_week_change.direction]">
+                            <span class="stat-trend-icon">{{ getTrendIcon(stats.trends.total_keys_week_change.direction) }}</span>
+                            <span>{{ stats.trends.total_keys_week_change.rate }}%</span>
+                        </span>
+                    </div>
+                    <div v-if="stats.trends" style="font-size: 12px; color: #909399; margin-top: 8px;">
+                        周环比 {{ stats.trends.total_keys_week_change.value > 0 ? '+' : '' }}{{ stats.trends.total_keys_week_change.value }}
+                    </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">有效密钥</div>
-                    <div class="stat-value" style="color: #67c23a;">{{ stats.valid_keys || 0 }}</div>
+                    <div>
+                        <span class="stat-value" style="color: #67c23a;">{{ stats.valid_keys || 0 }}</span>
+                        <span v-if="stats.trends" :class="['stat-trend', stats.trends.valid_keys_week_change.direction]">
+                            <span class="stat-trend-icon">{{ getTrendIcon(stats.trends.valid_keys_week_change.direction) }}</span>
+                            <span>{{ stats.trends.valid_keys_week_change.rate }}%</span>
+                        </span>
+                    </div>
+                    <div v-if="stats.trends" style="font-size: 12px; color: #909399; margin-top: 8px;">
+                        周环比 {{ stats.trends.valid_keys_week_change.value > 0 ? '+' : '' }}{{ stats.trends.valid_keys_week_change.value }}
+                    </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">限流密钥</div>
@@ -94,7 +132,16 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">今日新增</div>
-                    <div class="stat-value" style="color: #409eff;">{{ stats.today_keys || 0 }}</div>
+                    <div>
+                        <span class="stat-value" style="color: #409eff;">{{ stats.today_keys || 0 }}</span>
+                        <span v-if="stats.trends" :class="['stat-trend', stats.trends.today_keys_change.direction]">
+                            <span class="stat-trend-icon">{{ getTrendIcon(stats.trends.today_keys_change.direction) }}</span>
+                            <span>{{ stats.trends.today_keys_change.rate }}%</span>
+                        </span>
+                    </div>
+                    <div v-if="stats.trends" style="font-size: 12px; color: #909399; margin-top: 8px;">
+                        日环比 {{ stats.trends.today_keys_change.value > 0 ? '+' : '' }}{{ stats.trends.today_keys_change.value }}
+                    </div>
                 </div>
             </div>
 
@@ -233,73 +280,104 @@
 
                     const chart = echarts.init(this.$refs.providerChart);
 
-                    // 准备数据：总密钥和有效密钥
-                    const totalData = this.providerStats.map(item => ({
-                        name: item.provider,
-                        value: item.total_keys
-                    }));
-
-                    const validData = this.providerStats.map(item => ({
-                        name: item.provider + ' (有效)',
-                        value: item.valid_keys
-                    }));
+                    // 准备堆叠条形图数据
+                    const providers = this.providerStats.map(item => item.provider);
+                    const validKeys = this.providerStats.map(item => item.valid_keys);
+                    const rateLimitedKeys = this.providerStats.map(item => item.rate_limited_keys);
+                    const invalidKeys = this.providerStats.map(item => item.invalid_keys);
 
                     const option = {
                         tooltip: {
-                            trigger: 'item',
-                            formatter: '{b}: {c} ({d}%)'
+                            trigger: 'axis',
+                            axisPointer: {
+                                type: 'shadow'
+                            },
+                            formatter: (params) => {
+                                let result = `<strong>${params[0].axisValue}</strong><br/>`;
+                                let total = 0;
+                                params.forEach(item => {
+                                    total += item.value;
+                                    result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+                                });
+                                result += `<strong>总计: ${total}</strong>`;
+                                return result;
+                            }
                         },
                         legend: {
+                            data: ['有效密钥', '限流密钥', '无效密钥'],
                             bottom: '0%',
-                            left: 'center',
-                            orient: 'horizontal'
+                            left: 'center'
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '10%',
+                            top: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'value',
+                            axisLabel: {
+                                formatter: '{value}'
+                            }
+                        },
+                        yAxis: {
+                            type: 'category',
+                            data: providers,
+                            axisLabel: {
+                                fontSize: 13,
+                                fontWeight: 500
+                            }
                         },
                         series: [
                             {
-                                name: '总密钥分布',
-                                type: 'pie',
-                                radius: ['50%', '65%'],
-                                center: ['25%', '45%'],
+                                name: '有效密钥',
+                                type: 'bar',
+                                stack: 'total',
+                                data: validKeys,
                                 itemStyle: {
-                                    borderRadius: 8,
-                                    borderColor: '#fff',
-                                    borderWidth: 2
+                                    color: '#67c23a',
+                                    borderRadius: [0, 0, 0, 0]
                                 },
-                                label: {
-                                    show: true,
-                                    position: 'outside',
-                                    formatter: '{b}\n{c}'
-                                },
-                                labelLine: {
-                                    show: true
-                                },
-                                data: totalData
+                                emphasis: {
+                                    focus: 'series'
+                                }
                             },
                             {
-                                name: '有效密钥分布',
-                                type: 'pie',
-                                radius: ['50%', '65%'],
-                                center: ['75%', '45%'],
+                                name: '限流密钥',
+                                type: 'bar',
+                                stack: 'total',
+                                data: rateLimitedKeys,
                                 itemStyle: {
-                                    borderRadius: 8,
-                                    borderColor: '#fff',
-                                    borderWidth: 2
+                                    color: '#e6a23c',
+                                    borderRadius: [0, 0, 0, 0]
+                                },
+                                emphasis: {
+                                    focus: 'series'
+                                }
+                            },
+                            {
+                                name: '无效密钥',
+                                type: 'bar',
+                                stack: 'total',
+                                data: invalidKeys,
+                                itemStyle: {
+                                    color: '#f56c6c',
+                                    borderRadius: [0, 4, 4, 0]
+                                },
+                                emphasis: {
+                                    focus: 'series'
                                 },
                                 label: {
                                     show: true,
-                                    position: 'outside',
-                                    formatter: '{b}\n{c}'
-                                },
-                                labelLine: {
-                                    show: true
-                                },
-                                data: validData,
-                                emphasis: {
-                                    itemStyle: {
-                                        shadowBlur: 10,
-                                        shadowOffsetX: 0,
-                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
-                                    }
+                                    position: 'right',
+                                    formatter: (params) => {
+                                        const provider = this.providerStats[params.dataIndex];
+                                        return `总计: ${provider.total_keys}`;
+                                    },
+                                    fontSize: 12,
+                                    fontWeight: 'bold',
+                                    color: '#606266'
                                 }
                             }
                         ]
@@ -389,6 +467,11 @@
                         second: '2-digit',
                         hour12: false
                     });
+                },
+                getTrendIcon(direction) {
+                    if (direction === 'up') return '↑';
+                    if (direction === 'down') return '↓';
+                    return '—';
                 }
             },
             components: {

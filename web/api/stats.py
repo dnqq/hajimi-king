@@ -17,11 +17,88 @@ router = APIRouter()
 @router.get("/summary", response_model=StatsSummary)
 async def get_stats_summary(db: Session = Depends(get_db)):
     """
-    获取统计摘要
+    获取统计摘要（带趋势对比）
     """
     from utils.db_manager import db_manager
+    from sqlalchemy import case
+
+    # 获取基础统计
     stats = db_manager.get_stats_summary()
+
+    # 计算日环比
+    yesterday_start = datetime.utcnow() - timedelta(days=1)
+    yesterday_end = datetime.utcnow()
+    today_start = datetime.utcnow() - timedelta(hours=24)
+
+    # 昨日数据
+    yesterday_count = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= yesterday_start,
+        APIKey.discovered_at < yesterday_end
+    ).scalar() or 0
+
+    yesterday_valid = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= yesterday_start,
+        APIKey.discovered_at < yesterday_end,
+        APIKey.status == 'valid'
+    ).scalar() or 0
+
+    # 今日数据
+    today_count = stats.get('today_keys', 0)
+
+    # 计算周环比
+    week_ago_start = datetime.utcnow() - timedelta(days=14)
+    week_ago_end = datetime.utcnow() - timedelta(days=7)
+
+    last_week_count = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= week_ago_start,
+        APIKey.discovered_at < week_ago_end
+    ).scalar() or 0
+
+    this_week_count = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= datetime.utcnow() - timedelta(days=7)
+    ).scalar() or 0
+
+    # 计算有效密钥趋势
+    current_valid = stats.get('valid_keys', 0)
+    week_ago_valid = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at < week_ago_end,
+        APIKey.status == 'valid'
+    ).scalar() or 0
+
+    # 添加趋势数据
+    stats['trends'] = {
+        'total_keys_day_change': _calculate_change_rate(today_count, yesterday_count),
+        'total_keys_week_change': _calculate_change_rate(this_week_count, last_week_count),
+        'valid_keys_day_change': _calculate_change_rate(
+            db.query(func.count(APIKey.id)).filter(
+                APIKey.discovered_at >= today_start,
+                APIKey.status == 'valid'
+            ).scalar() or 0,
+            yesterday_valid
+        ),
+        'valid_keys_week_change': _calculate_change_rate(current_valid, week_ago_valid),
+        'today_keys_change': _calculate_change_rate(today_count, yesterday_count)
+    }
+
     return stats
+
+
+def _calculate_change_rate(current: int, previous: int) -> dict:
+    """计算变化率和趋势"""
+    if previous == 0:
+        if current > 0:
+            return {'rate': 100.0, 'direction': 'up', 'value': current - previous}
+        return {'rate': 0.0, 'direction': 'neutral', 'value': 0}
+
+    change = current - previous
+    rate = (change / previous) * 100
+    direction = 'up' if change > 0 else ('down' if change < 0 else 'neutral')
+
+    return {
+        'rate': round(abs(rate), 1),
+        'direction': direction,
+        'value': change
+    }
 
 
 @router.get("/providers", response_model=List[ProviderStat])
