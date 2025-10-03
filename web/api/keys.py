@@ -340,6 +340,84 @@ async def batch_sync(key_ids: List[int], db: Session = Depends(get_db)):
     }
 
 
+@router.get("/export/keys")
+async def export_keys_only(
+    provider: Optional[str] = Query(None, description="按供应商筛选"),
+    status: Optional[str] = Query(None, description="按状态筛选"),
+    sync_status: Optional[str] = Query(None, description="按同步状态筛选"),
+    search: Optional[str] = Query(None, description="搜索仓库名或密钥"),
+    db: Session = Depends(get_db)
+):
+    """
+    导出密钥（纯文本格式，每行一个密钥）
+    """
+    from fastapi.responses import StreamingResponse
+
+    # 使用相同的查询逻辑
+    query = db.query(APIKey)
+
+    if provider:
+        query = query.filter(APIKey.provider == provider)
+
+    if status:
+        query = query.filter(APIKey.status == status)
+
+    if sync_status:
+        if sync_status == 'synced':
+            query = query.filter(
+                or_(APIKey.synced_to_balancer == True, APIKey.synced_to_gpt_load == True)
+            )
+        elif sync_status == 'not_synced':
+            query = query.filter(
+                and_(APIKey.synced_to_balancer == False, APIKey.synced_to_gpt_load == False)
+            )
+
+    if search:
+        search_pattern = f"%{search}%"
+        filtered_keys = query.filter(
+            or_(
+                APIKey.source_repo.ilike(search_pattern),
+                APIKey.source_file_path.ilike(search_pattern)
+            )
+        ).all()
+
+        if any(c.isalnum() for c in search):
+            all_keys = query.all()
+            for key in all_keys:
+                try:
+                    decrypted = key_encryption.decrypt_key(key.key_encrypted)
+                    if search.lower() in decrypted.lower():
+                        if key not in filtered_keys:
+                            filtered_keys.append(key)
+                except Exception:
+                    pass
+
+        if filtered_keys:
+            key_ids = [k.id for k in filtered_keys]
+            query = db.query(APIKey).filter(APIKey.id.in_(key_ids))
+        else:
+            query = db.query(APIKey).filter(APIKey.id == -1)
+
+    keys = query.order_by(desc(APIKey.discovered_at)).all()
+
+    # 生成纯文本，每行一个密钥
+    key_lines = []
+    for key in keys:
+        try:
+            decrypted_key = key_encryption.decrypt_key(key.key_encrypted)
+            key_lines.append(decrypted_key)
+        except Exception:
+            pass
+
+    text_content = '\n'.join(key_lines)
+
+    return StreamingResponse(
+        iter([text_content.encode('utf-8')]),
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename=keys_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"}
+    )
+
+
 @router.get("/export/csv")
 async def export_keys_csv(
     provider: Optional[str] = Query(None, description="按供应商筛选"),

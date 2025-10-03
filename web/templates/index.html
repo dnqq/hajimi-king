@@ -46,10 +46,15 @@
             border-radius: 8px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
         }
+        .stat-value-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0;
+        }
         .stat-value {
             font-size: 32px;
             font-weight: bold;
-            margin: 8px 0;
         }
         .stat-label {
             color: #909399;
@@ -76,23 +81,16 @@
             font-size: 16px;
         }
         .stat-main-trend {
-            margin-top: 12px;
-            padding: 8px 12px;
-            background: rgba(64, 158, 255, 0.05);
-            border-radius: 6px;
-            border-left: 3px solid #409eff;
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
-        }
-        .stat-main-trend:hover {
-            background: rgba(64, 158, 255, 0.1);
-            box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+            display: inline-flex;
+            align-items: center;
         }
         .main-trend-content {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-size: 13px;
             font-weight: 500;
         }
@@ -119,18 +117,33 @@
         }
         .trend-detail-popup {
             position: absolute;
-            top: calc(100% + 8px);
-            left: 0;
-            right: 0;
+            top: 50%;
+            left: calc(100% + 12px);
+            transform: translateY(-50%);
             background: white;
             border-radius: 8px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
             padding: 12px;
             z-index: 100;
             display: none;
+            min-width: 200px;
+            white-space: nowrap;
         }
         .stat-main-trend:hover .trend-detail-popup {
             display: block;
+        }
+        .trend-detail-popup::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -6px;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 6px 6px 6px 0;
+            border-color: transparent white transparent transparent;
+            filter: drop-shadow(-2px 0 2px rgba(0, 0, 0, 0.05));
         }
         .trend-detail-row {
             display: flex;
@@ -238,120 +251,120 @@
             <div class="stat-cards">
                 <div class="stat-card">
                     <div class="stat-label">总密钥数</div>
-                    <div class="stat-value" style="color: #409eff;">{{ stats.total_keys || 0 }}</div>
-                    <div v-if="stats.trends" class="stat-main-trend">
-                        <div class="main-trend-content">
-                            <span style="color: #606266;">较上周</span>
-                            <span :class="['trend-badge', stats.trends.total_keys_week.direction]">
-                                <span>{{ getTrendIcon(stats.trends.total_keys_week.direction) }}</span>
-                                <span>{{ formatTrendValue(stats.trends.total_keys_week.value) }}</span>
-                                <span>({{ stats.trends.total_keys_week.rate }}%)</span>
-                            </span>
-                        </div>
-                        <div class="trend-detail-popup">
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比昨日</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_day.direction)}">
-                                    <span>{{ getTrendIcon(stats.trends.total_keys_day.direction) }}</span>
-                                    <span>{{ formatTrendValue(stats.trends.total_keys_day.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.total_keys_day.rate }}%)</span>
-                                </span>
-                            </div>
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比上周</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_week.direction)}">
+                    <div class="stat-value-container">
+                        <div class="stat-value" style="color: #409eff;">{{ stats.total_keys || 0 }}</div>
+                        <div v-if="stats.trends" class="stat-main-trend">
+                            <div class="main-trend-content">
+                                <span :class="['trend-badge', stats.trends.total_keys_week.direction]">
                                     <span>{{ getTrendIcon(stats.trends.total_keys_week.direction) }}</span>
                                     <span>{{ formatTrendValue(stats.trends.total_keys_week.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.total_keys_week.rate }}%)</span>
                                 </span>
                             </div>
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比上月</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_month.direction)}">
-                                    <span>{{ getTrendIcon(stats.trends.total_keys_month.direction) }}</span>
-                                    <span>{{ formatTrendValue(stats.trends.total_keys_month.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.total_keys_month.rate }}%)</span>
-                                </span>
+                            <div class="trend-detail-popup">
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比昨日</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_day.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.total_keys_day.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.total_keys_day.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.total_keys_day.rate }}%)</span>
+                                    </span>
+                                </div>
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比上周</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_week.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.total_keys_week.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.total_keys_week.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.total_keys_week.rate }}%)</span>
+                                    </span>
+                                </div>
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比上月</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_month.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.total_keys_month.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.total_keys_month.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.total_keys_month.rate }}%)</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">有效密钥</div>
-                    <div class="stat-value" style="color: #67c23a;">{{ stats.valid_keys || 0 }}</div>
-                    <div v-if="stats.trends" class="stat-main-trend" style="border-left-color: #67c23a; background: rgba(103, 194, 58, 0.05);">
-                        <div class="main-trend-content">
-                            <span style="color: #606266;">较上周</span>
-                            <span :class="['trend-badge', stats.trends.valid_keys_week.direction]">
-                                <span>{{ getTrendIcon(stats.trends.valid_keys_week.direction) }}</span>
-                                <span>{{ formatTrendValue(stats.trends.valid_keys_week.value) }}</span>
-                                <span>({{ stats.trends.valid_keys_week.rate }}%)</span>
-                            </span>
-                        </div>
-                        <div class="trend-detail-popup">
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比昨日</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_day.direction)}">
-                                    <span>{{ getTrendIcon(stats.trends.valid_keys_day.direction) }}</span>
-                                    <span>{{ formatTrendValue(stats.trends.valid_keys_day.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.valid_keys_day.rate }}%)</span>
-                                </span>
-                            </div>
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比上周</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_week.direction)}">
+                    <div class="stat-value-container">
+                        <div class="stat-value" style="color: #67c23a;">{{ stats.valid_keys || 0 }}</div>
+                        <div v-if="stats.trends" class="stat-main-trend">
+                            <div class="main-trend-content">
+                                <span :class="['trend-badge', stats.trends.valid_keys_week.direction]">
                                     <span>{{ getTrendIcon(stats.trends.valid_keys_week.direction) }}</span>
                                     <span>{{ formatTrendValue(stats.trends.valid_keys_week.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.valid_keys_week.rate }}%)</span>
                                 </span>
                             </div>
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比上月</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_month.direction)}">
-                                    <span>{{ getTrendIcon(stats.trends.valid_keys_month.direction) }}</span>
-                                    <span>{{ formatTrendValue(stats.trends.valid_keys_month.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.valid_keys_month.rate }}%)</span>
-                                </span>
+                            <div class="trend-detail-popup">
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比昨日</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_day.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.valid_keys_day.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.valid_keys_day.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.valid_keys_day.rate }}%)</span>
+                                    </span>
+                                </div>
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比上周</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_week.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.valid_keys_week.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.valid_keys_week.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.valid_keys_week.rate }}%)</span>
+                                    </span>
+                                </div>
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比上月</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_month.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.valid_keys_month.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.valid_keys_month.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.valid_keys_month.rate }}%)</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">限流密钥</div>
-                    <div class="stat-value" style="color: #e6a23c;">{{ stats.rate_limited_keys || 0 }}</div>
-                    <div v-if="stats.trends" class="stat-main-trend" style="border-left-color: #e6a23c; background: rgba(230, 162, 60, 0.05);">
-                        <div class="main-trend-content">
-                            <span style="color: #606266;">较上周</span>
-                            <span :class="['trend-badge', stats.trends.rate_limited_keys_week.direction]">
-                                <span>{{ getTrendIcon(stats.trends.rate_limited_keys_week.direction) }}</span>
-                                <span>{{ formatTrendValue(stats.trends.rate_limited_keys_week.value) }}</span>
-                                <span>({{ stats.trends.rate_limited_keys_week.rate }}%)</span>
-                            </span>
-                        </div>
-                        <div class="trend-detail-popup">
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比昨日</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_day.direction)}">
-                                    <span>{{ getTrendIcon(stats.trends.rate_limited_keys_day.direction) }}</span>
-                                    <span>{{ formatTrendValue(stats.trends.rate_limited_keys_day.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.rate_limited_keys_day.rate }}%)</span>
-                                </span>
-                            </div>
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比上周</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_week.direction)}">
+                    <div class="stat-value-container">
+                        <div class="stat-value" style="color: #e6a23c;">{{ stats.rate_limited_keys || 0 }}</div>
+                        <div v-if="stats.trends" class="stat-main-trend">
+                            <div class="main-trend-content">
+                                <span :class="['trend-badge', stats.trends.rate_limited_keys_week.direction]">
                                     <span>{{ getTrendIcon(stats.trends.rate_limited_keys_week.direction) }}</span>
                                     <span>{{ formatTrendValue(stats.trends.rate_limited_keys_week.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.rate_limited_keys_week.rate }}%)</span>
                                 </span>
                             </div>
-                            <div class="trend-detail-row">
-                                <span class="trend-detail-label">对比上月</span>
-                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_month.direction)}">
-                                    <span>{{ getTrendIcon(stats.trends.rate_limited_keys_month.direction) }}</span>
-                                    <span>{{ formatTrendValue(stats.trends.rate_limited_keys_month.value) }}</span>
-                                    <span style="color: #909399;">({{ stats.trends.rate_limited_keys_month.rate }}%)</span>
-                                </span>
+                            <div class="trend-detail-popup">
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比昨日</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_day.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.rate_limited_keys_day.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.rate_limited_keys_day.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.rate_limited_keys_day.rate }}%)</span>
+                                    </span>
+                                </div>
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比上周</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_week.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.rate_limited_keys_week.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.rate_limited_keys_week.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.rate_limited_keys_week.rate }}%)</span>
+                                    </span>
+                                </div>
+                                <div class="trend-detail-row">
+                                    <span class="trend-detail-label">对比上月</span>
+                                    <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_month.direction)}">
+                                        <span>{{ getTrendIcon(stats.trends.rate_limited_keys_month.direction) }}</span>
+                                        <span>{{ formatTrendValue(stats.trends.rate_limited_keys_month.value) }}</span>
+                                        <span style="color: #909399;">({{ stats.trends.rate_limited_keys_month.rate }}%)</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -366,12 +379,6 @@
             <div class="chart-container">
                 <div class="chart-title">供应商密钥分布</div>
                 <div ref="providerChart" class="chart"></div>
-            </div>
-
-            <!-- 最近7天趋势 -->
-            <div class="chart-container">
-                <div class="chart-title">最近7天密钥发现趋势</div>
-                <div ref="trendChart" class="chart"></div>
             </div>
 
             <!-- 同步状态 -->
@@ -453,8 +460,7 @@
                     dailyStats: [],
                     recentKeys: [],
                     syncStatus: {},
-                    providerChart: null,
-                    trendChart: null
+                    providerChart: null
                 };
             },
             mounted() {
@@ -517,7 +523,6 @@
                             return;
                         }
                         this.dailyStats = await response.json();
-                        this.renderTrendChart();
                     } catch (error) {
                         ElMessage.error('加载趋势数据失败');
                     }
@@ -738,73 +743,6 @@
                     }
 
                     this.providerChart = chart;
-                },
-                renderTrendChart() {
-                    if (!this.$refs.trendChart) return;
-
-                    const chart = echarts.init(this.$refs.trendChart);
-
-                    // 按日期分组，同时统计总发现数和有效数
-                    const dateMap = {};
-                    const validDateMap = {};
-                    this.dailyStats.forEach(item => {
-                        const dateStr = new Date(item.date).toLocaleDateString('zh-CN');
-                        if (!dateMap[dateStr]) {
-                            dateMap[dateStr] = 0;
-                            validDateMap[dateStr] = 0;
-                        }
-                        dateMap[dateStr] += item.keys_discovered;
-                        validDateMap[dateStr] += item.valid_keys_count || 0;
-                    });
-
-                    const dates = Object.keys(dateMap).sort();
-                    const totalValues = dates.map(date => dateMap[date]);
-                    const validValues = dates.map(date => validDateMap[date]);
-
-                    const option = {
-                        tooltip: {
-                            trigger: 'axis'
-                        },
-                        legend: {
-                            data: ['发现密钥数', '有效密钥数'],
-                            bottom: '0%'
-                        },
-                        xAxis: {
-                            type: 'category',
-                            data: dates
-                        },
-                        yAxis: {
-                            type: 'value'
-                        },
-                        series: [
-                            {
-                                name: '发现密钥数',
-                                type: 'line',
-                                smooth: true,
-                                data: totalValues,
-                                areaStyle: {
-                                    color: 'rgba(64, 158, 255, 0.2)'
-                                },
-                                itemStyle: {
-                                    color: '#409eff'
-                                }
-                            },
-                            {
-                                name: '有效密钥数',
-                                type: 'line',
-                                smooth: true,
-                                data: validValues,
-                                areaStyle: {
-                                    color: 'rgba(103, 194, 58, 0.2)'
-                                },
-                                itemStyle: {
-                                    color: '#67c23a'
-                                }
-                            }
-                        ]
-                    };
-                    chart.setOption(option);
-                    this.trendChart = chart;
                 },
                 formatTime(timestamp) {
                     if (!timestamp) return '-';
