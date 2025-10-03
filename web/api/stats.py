@@ -245,3 +245,48 @@ async def get_recent_keys(limit: int = 10, db: Session = Depends(get_db)):
         })
 
     return result
+
+
+@router.get("/provider-validity-trend", response_model=List[dict])
+async def get_provider_validity_trend(days: int = 30, db: Session = Depends(get_db)):
+    """
+    获取供应商有效率趋势（按天统计）
+    """
+    from sqlalchemy import case
+
+    start_date = datetime.utcnow() - timedelta(days=days)
+
+    try:
+        # 按日期和供应商统计有效率
+        results = db.query(
+            func.date(APIKey.discovered_at).label('date'),
+            APIKey.provider,
+            func.count(APIKey.id).label('total_keys'),
+            func.sum(case((APIKey.status == 'valid', 1), else_=0)).label('valid_keys')
+        ).filter(
+            APIKey.discovered_at >= start_date
+        ).group_by(
+            func.date(APIKey.discovered_at),
+            APIKey.provider
+        ).order_by(
+            func.date(APIKey.discovered_at)
+        ).all()
+
+        # 计算有效率
+        trend_data = []
+        for row in results:
+            total = int(row.total_keys) if row.total_keys else 0
+            valid = int(row.valid_keys) if row.valid_keys else 0
+            valid_rate = (valid / total * 100) if total > 0 else 0
+
+            trend_data.append({
+                "date": row.date.isoformat() if hasattr(row.date, 'isoformat') else str(row.date),
+                "provider": row.provider,
+                "total_keys": total,
+                "valid_keys": valid,
+                "valid_rate": round(valid_rate, 2)
+            })
+
+        return trend_data
+    except Exception as e:
+        return []

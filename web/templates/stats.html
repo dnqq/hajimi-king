@@ -46,6 +46,20 @@
             width: 100%;
             height: 400px;
         }
+        .time-range-selector {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 16px 24px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+        .time-range-buttons {
+            display: flex;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -53,6 +67,29 @@
         <nav-bar active-page="stats"></nav-bar>
 
         <div class="main-container">
+            <!-- 时间范围选择器 -->
+            <div class="time-range-selector">
+                <div>
+                    <strong style="font-size: 16px; margin-right: 16px;">时间范围:</strong>
+                    <el-radio-group v-model="timeRange" @change="onTimeRangeChange" size="default">
+                        <el-radio-button label="7">最近7天</el-radio-button>
+                        <el-radio-button label="30">最近30天</el-radio-button>
+                        <el-radio-button label="90">最近90天</el-radio-button>
+                        <el-radio-button label="custom">自定义</el-radio-button>
+                    </el-radio-group>
+                </div>
+                <div v-if="timeRange === 'custom'" style="margin-left: 16px;">
+                    <el-date-picker
+                        v-model="customDateRange"
+                        type="daterange"
+                        range-separator="至"
+                        start-placeholder="开始日期"
+                        end-placeholder="结束日期"
+                        @change="onCustomDateChange"
+                        size="default"
+                    />
+                </div>
+            </div>
             <!-- 供应商对比 -->
             <div class="chart-container">
                 <div class="chart-title">供应商密钥数量对比</div>
@@ -63,6 +100,12 @@
             <div class="chart-container">
                 <div class="chart-title">供应商有效率对比</div>
                 <div ref="providerValidRateChart" class="chart"></div>
+            </div>
+
+            <!-- 供应商有效率趋势 -->
+            <div class="chart-container">
+                <div class="chart-title">供应商有效率变化趋势</div>
+                <div ref="validityTrendChart" class="chart"></div>
             </div>
 
             <!-- 每日趋势 -->
@@ -126,8 +169,11 @@
                 return {
                     providerStats: [],
                     dailyStats: [],
+                    validityTrendData: [],
                     topRepos: [],
-                    syncStatus: {}
+                    syncStatus: {},
+                    timeRange: '30',
+                    customDateRange: null
                 };
             },
             mounted() {
@@ -144,8 +190,27 @@
                 async loadData() {
                     await this.loadProviderStats();
                     await this.loadDailyStats();
+                    await this.loadValidityTrend();
                     await this.loadTopRepos();
                     await this.loadSyncStatus();
+                },
+                onTimeRangeChange(value) {
+                    if (value !== 'custom') {
+                        this.loadData();
+                    }
+                },
+                onCustomDateChange(dateRange) {
+                    if (dateRange && dateRange.length === 2) {
+                        this.loadData();
+                    }
+                },
+                getDaysFromRange() {
+                    if (this.timeRange === 'custom' && this.customDateRange && this.customDateRange.length === 2) {
+                        const start = new Date(this.customDateRange[0]);
+                        const end = new Date(this.customDateRange[1]);
+                        return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                    }
+                    return parseInt(this.timeRange);
                 },
                 async loadProviderStats() {
                     try {
@@ -160,13 +225,26 @@
                 },
                 async loadDailyStats() {
                     try {
-                        const response = await fetch('/api/stats/daily?days=30', {
+                        const days = this.getDaysFromRange();
+                        const response = await fetch(`/api/stats/daily?days=${days}`, {
                             headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
                         });
                         this.dailyStats = await response.json();
                         this.renderDailyTrendChart();
                     } catch (error) {
                         ElMessage.error('加载每日统计失败');
+                    }
+                },
+                async loadValidityTrend() {
+                    try {
+                        const days = this.getDaysFromRange();
+                        const response = await fetch(`/api/stats/provider-validity-trend?days=${days}`, {
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        this.validityTrendData = await response.json();
+                        this.renderValidityTrendChart();
+                    } catch (error) {
+                        ElMessage.error('加载有效率趋势失败');
                     }
                 },
                 async loadTopRepos() {
@@ -252,6 +330,80 @@
                             areaStyle: { color: 'rgba(64, 158, 255, 0.2)' },
                             itemStyle: { color: '#409eff' }
                         }]
+                    });
+                },
+                renderValidityTrendChart() {
+                    const chart = echarts.init(this.$refs.validityTrendChart);
+
+                    // 按供应商分组数据
+                    const providerMap = {};
+                    this.validityTrendData.forEach(item => {
+                        if (!providerMap[item.provider]) {
+                            providerMap[item.provider] = {};
+                        }
+                        const dateStr = new Date(item.date).toLocaleDateString('zh-CN');
+                        providerMap[item.provider][dateStr] = item.valid_rate;
+                    });
+
+                    // 获取所有日期并排序
+                    const allDates = [...new Set(this.validityTrendData.map(item =>
+                        new Date(item.date).toLocaleDateString('zh-CN')
+                    ))].sort();
+
+                    // 为每个供应商创建一条折线
+                    const colors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399', '#00d4ff', '#ff6b9d'];
+                    const series = Object.keys(providerMap).map((provider, index) => {
+                        const data = allDates.map(date => providerMap[provider][date] || null);
+                        return {
+                            name: provider,
+                            type: 'line',
+                            smooth: true,
+                            data: data,
+                            itemStyle: { color: colors[index % colors.length] },
+                            lineStyle: { width: 2 },
+                            symbol: 'circle',
+                            symbolSize: 6,
+                            connectNulls: true
+                        };
+                    });
+
+                    chart.setOption({
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: (params) => {
+                                let result = `<strong>${params[0].axisValue}</strong><br/>`;
+                                params.forEach(item => {
+                                    if (item.value !== null) {
+                                        result += `${item.marker} ${item.seriesName}: ${item.value}%<br/>`;
+                                    }
+                                });
+                                return result;
+                            }
+                        },
+                        legend: {
+                            data: Object.keys(providerMap),
+                            bottom: '0%',
+                            type: 'scroll'
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '10%',
+                            top: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: allDates,
+                            boundaryGap: false
+                        },
+                        yAxis: {
+                            type: 'value',
+                            axisLabel: { formatter: '{value}%' },
+                            min: 0,
+                            max: 100
+                        },
+                        series: series
                     });
                 },
                 renderTopReposChart() {
