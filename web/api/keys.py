@@ -8,7 +8,7 @@ from sqlalchemy import desc, and_, or_
 
 from web.database import get_db
 from web.models import APIKey
-from web.schemas import APIKeyListItem, APIKeyResponse, APIKeyUpdate, PaginatedResponse
+from web.schemas import APIKeyListItem, APIKeyResponse, APIKeyUpdate, PaginatedResponse, BatchUpdateProviderRequest
 from utils.crypto import key_encryption
 from common.Logger import logger
 
@@ -222,12 +222,12 @@ async def batch_delete_keys(key_ids: List[int], db: Session = Depends(get_db)):
 
 
 @router.post("/batch-update-provider")
-async def batch_update_provider(key_ids: List[int], new_provider: str, db: Session = Depends(get_db)):
+async def batch_update_provider(request: BatchUpdateProviderRequest, db: Session = Depends(get_db)):
     """
     批量更改供应商
     """
-    updated_count = db.query(APIKey).filter(APIKey.id.in_(key_ids)).update(
-        {"provider": new_provider},
+    updated_count = db.query(APIKey).filter(APIKey.id.in_(request.key_ids)).update(
+        {"provider": request.provider},
         synchronize_session=False
     )
     db.commit()

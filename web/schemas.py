@@ -63,6 +63,12 @@ class APIKeyUpdate(BaseModel):
     extra_data: Optional[Dict[str, Any]] = None
 
 
+class BatchUpdateProviderRequest(BaseModel):
+    """批量更改供应商请求"""
+    key_ids: List[int]
+    provider: str
+
+
 # ============= Statistics Schemas =============
 
 class StatsSummary(BaseModel):
