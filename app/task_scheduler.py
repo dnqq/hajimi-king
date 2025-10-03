@@ -121,8 +121,6 @@ class TaskScheduler:
         """校验线程：验证 Keys"""
         from app.providers.config_key_extractor import ConfigKeyExtractor
 
-        config_key_extractor = ConfigKeyExtractor()
-
         while not self.shutdown_flag.is_set():
             try:
                 # 从搜索队列获取任务
@@ -147,7 +145,7 @@ class TaskScheduler:
                     continue
 
                 # 提取并验证 Keys
-                extracted = config_key_extractor.extract_keys_by_provider(content)
+                extracted = ConfigKeyExtractor.extract_all_keys(content)
 
                 for provider_name, keys in extracted.items():
                     if not keys:
@@ -171,7 +169,7 @@ class TaskScheduler:
                             logger.info(f"❌ INVALID {provider_name.upper()}: {key[:20]}...")
 
                         # 保存到数据库
-                        group_name = config_key_extractor.get_gpt_load_group_name(provider_name)
+                        group_name = ConfigKeyExtractor.get_gpt_load_group_name(provider_name)
                         key_id = db_manager.save_api_key(
                             api_key=key,
                             provider=provider_name,
