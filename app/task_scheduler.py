@@ -167,8 +167,7 @@ class TaskScheduler:
                             status = 'invalid'
                             logger.info(f"❌ INVALID {provider_name.upper()}: {key[:20]}...")
 
-                        # 保存到数据库
-                        group_name = ConfigKeyExtractor.get_gpt_load_group_name(provider_name)
+                        # 保存到数据库（不再存储 group_name，同步时实时获取）
                         key_id = db_manager.save_api_key(
                             api_key=key,
                             provider=provider_name,
@@ -177,17 +176,16 @@ class TaskScheduler:
                             source_file_path=file_path,
                             source_file_url=file_url,
                             source_file_sha=file_sha,
-                            gpt_load_group_name=group_name if group_name else None,
+                            gpt_load_group_name=None,  # 不存储，同步时实时获取
                             metadata={'validation_result': validation_result}
                         )
 
-                        # 有效的 Key 放入同步队列（只有配置了 group_name 才同步）
-                        if status == 'valid' and key_id and group_name and group_name.strip():
+                        # 有效的 Key 放入同步队列（存储 provider_name，同步时动态获取 group_name）
+                        if status == 'valid' and key_id:
                             self.validation_queue.put({
                                 'key_id': key_id,
                                 'key': key,
-                                'provider': provider_name,
-                                'group_name': group_name
+                                'provider': provider_name  # 只存储 provider，不存储 group_name
                             })
 
                 # 标记文件已扫描
@@ -216,16 +214,26 @@ class TaskScheduler:
 
                 key_id = task['key_id']
                 key = task['key']
-                group_name = task['group_name']
+                provider_name = task['provider']
+
+                # 实时获取 group_name（支持动态修改配置）
+                from app.providers.config_key_extractor import ConfigKeyExtractor
+                group_name = ConfigKeyExtractor.get_gpt_load_group_name(provider_name)
+
+                # 检查是否配置了 group_name
+                if not group_name or not group_name.strip():
+                    logger.warning(f"⚠️ Skipping key {key_id}: provider '{provider_name}' has no gpt_load_group_name configured")
+                    self.validation_queue.task_done()
+                    continue
 
                 # 执行同步
-                logger.info(f"🔄 Syncing key {key_id} to GPT Load...")
+                logger.info(f"🔄 Syncing key {key_id} (provider: {provider_name}) to group '{group_name}'...")
 
                 result = sync_utils._send_gpt_load_worker([key], group_name)
 
                 if result == "success":
                     db_manager.mark_key_synced(key_id, 'gpt_load', success=True)
-                    logger.info(f"✅ Synced key {key_id}")
+                    logger.info(f"✅ Synced key {key_id} to group '{group_name}'")
                 else:
                     db_manager.mark_key_synced(key_id, 'gpt_load', success=False, error_message=result)
                     logger.error(f"❌ Failed to sync key {key_id}: {result}")
@@ -254,18 +262,25 @@ class TaskScheduler:
 
             for key_obj in pending_keys:
                 try:
+                    # 实时获取 group_name（支持动态修改配置）
+                    from app.providers.config_key_extractor import ConfigKeyExtractor
+                    group_name = ConfigKeyExtractor.get_gpt_load_group_name(key_obj.provider)
+
                     # 检查是否配置了 group_name
-                    if not key_obj.gpt_load_group_name or not key_obj.gpt_load_group_name.strip():
-                        logger.warning(f"⚠️ Skipping key {key_obj.id}: no gpt_load_group_name configured")
+                    if not group_name or not group_name.strip():
+                        logger.warning(f"⚠️ Skipping key {key_obj.id}: provider '{key_obj.provider}' has no gpt_load_group_name configured")
                         continue
 
                     from utils.crypto import key_encryption
                     decrypted_key = key_encryption.decrypt_key(key_obj.key_encrypted)
 
-                    result = sync_utils._send_gpt_load_worker([decrypted_key], key_obj.gpt_load_group_name)
+                    logger.info(f"🔄 Syncing pending key {key_obj.id} (provider: {key_obj.provider}) to group '{group_name}'...")
+
+                    result = sync_utils._send_gpt_load_worker([decrypted_key], group_name)
 
                     if result == "success":
                         db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=True)
+                        logger.info(f"✅ Synced pending key {key_obj.id} to group '{group_name}'")
                     else:
                         db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=False, error_message=result)
 
