@@ -141,7 +141,7 @@ class TaskScheduler:
                 # 下载文件内容
                 from utils.github_client import GitHubClient
                 github_client = GitHubClient(config.GITHUB_TOKENS)
-                content = github_client.get_file_content(item.get("url"))
+                content = github_client.get_file_content(item)
 
                 if not content:
                     continue
@@ -206,7 +206,9 @@ class TaskScheduler:
             except queue.Empty:
                 continue
             except Exception as e:
+                import traceback
                 logger.error(f"Validation worker error: {e}")
+                logger.error(traceback.format_exc())
 
     def _sync_worker(self):
         """同步线程：自动同步有效 Keys"""
