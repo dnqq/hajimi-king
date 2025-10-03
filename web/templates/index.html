@@ -75,6 +75,18 @@
         .stat-trend-icon {
             font-size: 16px;
         }
+        .stat-trends-detail {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #909399;
+        }
+        .trend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
         .chart-container {
             background: #fff;
             padding: 24px;
@@ -102,46 +114,70 @@
             <div class="stat-cards">
                 <div class="stat-card">
                     <div class="stat-label">总密钥数</div>
-                    <div>
-                        <span class="stat-value" style="color: #409eff;">{{ stats.total_keys || 0 }}</span>
-                        <span v-if="stats.trends" :class="['stat-trend', stats.trends.total_keys_week_change.direction]">
-                            <span class="stat-trend-icon">{{ getTrendIcon(stats.trends.total_keys_week_change.direction) }}</span>
-                            <span>{{ stats.trends.total_keys_week_change.rate }}%</span>
-                        </span>
-                    </div>
-                    <div v-if="stats.trends" style="font-size: 12px; color: #909399; margin-top: 8px;">
-                        周环比 {{ stats.trends.total_keys_week_change.value > 0 ? '+' : '' }}{{ stats.trends.total_keys_week_change.value }}
+                    <div class="stat-value" style="color: #409eff;">{{ stats.total_keys || 0 }}</div>
+                    <div v-if="stats.trends" class="stat-trends-detail">
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.total_keys_day.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.total_keys_day.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.total_keys_day.value) }}</span>
+                            <span style="color: #909399;">vs昨日</span>
+                        </div>
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.total_keys_week.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.total_keys_week.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.total_keys_week.value) }}</span>
+                            <span style="color: #909399;">vs上周</span>
+                        </div>
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.total_keys_month.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.total_keys_month.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.total_keys_month.value) }}</span>
+                            <span style="color: #909399;">vs上月</span>
+                        </div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">有效密钥</div>
-                    <div>
-                        <span class="stat-value" style="color: #67c23a;">{{ stats.valid_keys || 0 }}</span>
-                        <span v-if="stats.trends" :class="['stat-trend', stats.trends.valid_keys_week_change.direction]">
-                            <span class="stat-trend-icon">{{ getTrendIcon(stats.trends.valid_keys_week_change.direction) }}</span>
-                            <span>{{ stats.trends.valid_keys_week_change.rate }}%</span>
-                        </span>
-                    </div>
-                    <div v-if="stats.trends" style="font-size: 12px; color: #909399; margin-top: 8px;">
-                        周环比 {{ stats.trends.valid_keys_week_change.value > 0 ? '+' : '' }}{{ stats.trends.valid_keys_week_change.value }}
+                    <div class="stat-value" style="color: #67c23a;">{{ stats.valid_keys || 0 }}</div>
+                    <div v-if="stats.trends" class="stat-trends-detail">
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.valid_keys_day.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.valid_keys_day.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.valid_keys_day.value) }}</span>
+                            <span style="color: #909399;">vs昨日</span>
+                        </div>
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.valid_keys_week.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.valid_keys_week.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.valid_keys_week.value) }}</span>
+                            <span style="color: #909399;">vs上周</span>
+                        </div>
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.valid_keys_month.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.valid_keys_month.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.valid_keys_month.value) }}</span>
+                            <span style="color: #909399;">vs上月</span>
+                        </div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">限流密钥</div>
                     <div class="stat-value" style="color: #e6a23c;">{{ stats.rate_limited_keys || 0 }}</div>
+                    <div v-if="stats.trends" class="stat-trends-detail">
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.rate_limited_keys_day.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.rate_limited_keys_day.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.rate_limited_keys_day.value) }}</span>
+                            <span style="color: #909399;">vs昨日</span>
+                        </div>
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.rate_limited_keys_week.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.rate_limited_keys_week.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.rate_limited_keys_week.value) }}</span>
+                            <span style="color: #909399;">vs上周</span>
+                        </div>
+                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.rate_limited_keys_month.direction)}">
+                            <span>{{ getTrendIcon(stats.trends.rate_limited_keys_month.direction) }}</span>
+                            <span>{{ formatTrendValue(stats.trends.rate_limited_keys_month.value) }}</span>
+                            <span style="color: #909399;">vs上月</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">今日新增</div>
-                    <div>
-                        <span class="stat-value" style="color: #409eff;">{{ stats.today_keys || 0 }}</span>
-                        <span v-if="stats.trends" :class="['stat-trend', stats.trends.today_keys_change.direction]">
-                            <span class="stat-trend-icon">{{ getTrendIcon(stats.trends.today_keys_change.direction) }}</span>
-                            <span>{{ stats.trends.today_keys_change.rate }}%</span>
-                        </span>
-                    </div>
-                    <div v-if="stats.trends" style="font-size: 12px; color: #909399; margin-top: 8px;">
-                        日环比 {{ stats.trends.today_keys_change.value > 0 ? '+' : '' }}{{ stats.trends.today_keys_change.value }}
-                    </div>
+                    <div class="stat-value" style="color: #409eff;">{{ stats.today_keys || 0 }}</div>
                 </div>
             </div>
 
@@ -472,6 +508,16 @@
                     if (direction === 'up') return '↑';
                     if (direction === 'down') return '↓';
                     return '—';
+                },
+                getTrendColor(direction) {
+                    if (direction === 'up') return '#67c23a';
+                    if (direction === 'down') return '#f56c6c';
+                    return '#909399';
+                },
+                formatTrendValue(value) {
+                    if (value > 0) return `+${value}`;
+                    if (value < 0) return `${value}`;
+                    return '0';
                 }
             },
             components: {

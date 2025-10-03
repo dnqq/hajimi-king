@@ -71,6 +71,13 @@ class BatchUpdateProviderRequest(BaseModel):
 
 # ============= Statistics Schemas =============
 
+class TrendChange(BaseModel):
+    """趋势变化"""
+    rate: float  # 变化率百分比
+    direction: str  # 方向: up/down/neutral
+    value: int  # 变化数值
+
+
 class StatsSummary(BaseModel):
     """统计摘要"""
     total_keys: int
@@ -81,6 +88,7 @@ class StatsSummary(BaseModel):
     today_keys: int
     pending_balancer_sync: int
     pending_gpt_load_sync: int
+    trends: Optional[Dict[str, TrendChange]] = None
 
 
 class ProviderStat(BaseModel):

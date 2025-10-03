@@ -214,6 +214,54 @@ class DBManager:
         finally:
             db.close()
 
+    @staticmethod
+    def update_key_status(
+        key_id: int,
+        status: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        更新密钥状态
+
+        Args:
+            key_id: 密钥 ID
+            status: 新状态 (valid/rate_limited/invalid)
+            metadata: 额外元数据
+
+        Returns:
+            是否更新成功
+        """
+        db = SessionLocal()
+        try:
+            key_obj = db.query(APIKey).filter(APIKey.id == key_id).first()
+            if not key_obj:
+                logger.warning(f"⚠️ Key {key_id} not found")
+                return False
+
+            # 更新状态
+            old_status = key_obj.status
+            key_obj.status = status
+            key_obj.last_validated_at = datetime.utcnow()
+
+            # 更新元数据
+            if metadata:
+                if key_obj.extra_data:
+                    key_obj.extra_data.update(metadata)
+                else:
+                    key_obj.extra_data = metadata
+
+            db.commit()
+
+            logger.info(f"✅ Updated key {key_id} status: {old_status} -> {status}")
+            return True
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ Failed to update key {key_id} status: {e}")
+            return False
+        finally:
+            db.close()
+
 
 # 全局实例
 db_manager = DBManager()

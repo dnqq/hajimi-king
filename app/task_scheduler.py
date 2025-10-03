@@ -1,8 +1,9 @@
 """
-任务调度器 - 三线程架构
+任务调度器 - 多线程架构
 1. 搜索线程：GitHub 搜索 API Keys
 2. 校验线程：验证 Keys 有效性
 3. 同步线程：自动同步有效 Keys
+4. 重新校验线程：每天重新验证限流密钥
 """
 import os
 import queue
@@ -60,7 +61,16 @@ class TaskScheduler:
         sync_thread.start()
         self.threads.append(sync_thread)
 
-        logger.info("✅ Task scheduler started with 3 worker types")
+        # 4. 限流密钥重新校验线程
+        revalidation_thread = threading.Thread(
+            target=self._revalidation_worker,
+            name="RevalidationWorker",
+            daemon=True
+        )
+        revalidation_thread.start()
+        self.threads.append(revalidation_thread)
+
+        logger.info("✅ Task scheduler started with 4 worker types")
 
     def _search_worker(self):
         """搜索线程：执行 GitHub 搜索"""
@@ -324,6 +334,50 @@ class TaskScheduler:
                     auto_queries.append(f'"{provider_name}_API_KEY" = "{prefix}" language:{lang}')
 
         return auto_queries
+
+    def _revalidation_worker(self):
+        """限流密钥重新校验线程：每天运行一次"""
+        from app.rate_limit_revalidator import rate_limit_revalidator
+
+        # 获取执行时间配置（默认每天凌晨 2 点）
+        revalidation_hour = int(os.getenv("REVALIDATION_HOUR", "2"))
+
+        logger.info(f"🔄 Rate-limit revalidation worker started, will run daily at {revalidation_hour}:00")
+
+        while not self.shutdown_flag.is_set():
+            try:
+                # 计算下次执行时间
+                now = datetime.now()
+                next_run = now.replace(hour=revalidation_hour, minute=0, second=0, microsecond=0)
+
+                # 如果今天的执行时间已过，推迟到明天
+                if next_run <= now:
+                    next_run += timedelta(days=1)
+
+                # 等待到执行时间
+                sleep_seconds = (next_run - datetime.now()).total_seconds()
+                logger.info(f"💤 Next revalidation scheduled at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+
+                # 分段休眠，以便能够响应 shutdown 信号
+                while sleep_seconds > 0 and not self.shutdown_flag.is_set():
+                    sleep_chunk = min(sleep_seconds, 60)  # 每次最多睡 60 秒
+                    time.sleep(sleep_chunk)
+                    sleep_seconds -= sleep_chunk
+
+                if self.shutdown_flag.is_set():
+                    break
+
+                # 执行重新校验
+                logger.info("🚀 Starting scheduled rate-limited keys revalidation")
+                rate_limit_revalidator.revalidate_rate_limited_keys(batch_size=50)
+                logger.info("✅ Scheduled revalidation completed")
+
+            except Exception as e:
+                logger.error(f"❌ Revalidation worker error: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # 出错后等待 1 小时再重试
+                time.sleep(3600)
 
     def shutdown(self):
         """停止所有线程"""
