@@ -1,6 +1,7 @@
 """
 密钥管理 API
 """
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -263,7 +264,7 @@ async def batch_revalidate(key_ids: List[int], db: Session = Depends(get_db)):
             # 校验密钥
             validation_result = provider.validate_key(decrypted_key)
 
-            if validation_result and "ok" in validation_result:
+            if validation_result == "ok":
                 key_obj.status = 'valid'
                 success_count += 1
             elif "rate_limited" in validation_result:
@@ -271,7 +272,7 @@ async def batch_revalidate(key_ids: List[int], db: Session = Depends(get_db)):
                 success_count += 1
             else:
                 key_obj.status = 'invalid'
-                success_count += 1
+                fail_count += 1
 
             key_obj.last_validated_at = datetime.utcnow()
 

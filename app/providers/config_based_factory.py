@@ -37,54 +37,74 @@ class OpenAIStyleProvider(ConfigBasedAIProvider):
         """验证OpenAI风格API密钥"""
         try:
             import openai
-            from openai import OpenAI, AuthenticationError, RateLimitError, APIError
+            from openai import OpenAI, AuthenticationError, RateLimitError, APIError, NotFoundError, BadRequestError
         except ImportError:
             return "error:openai_package_not_available"
-        
+
         try:
             import time
             import random
             time.sleep(random.uniform(1, 5))
-            
+
             # 获取代理配置
             proxy_config = self.get_random_proxy()
-            
+
             # 创建客户端配置
             client_kwargs = {
                 "api_key": api_key,
                 "base_url": self.config.get('api_base_url', 'https://api.openai.com/v1')
             }
-            
+
             # 设置代理
             if proxy_config:
                 import httpx
                 proxy_url = proxy_config.get('http') or proxy_config.get('https')
                 if proxy_url:
                     client_kwargs["http_client"] = httpx.Client(proxies=proxy_url)
-            
+
             client = OpenAI(**client_kwargs)
-            
+
             # 发送简单验证请求
             response = client.chat.completions.create(
                 model=self.config.get('check_model', 'gpt-3.5-turbo'),
                 messages=[{"role": "user", "content": "hi"}],
                 max_tokens=5
             )
-            
+
             return "ok"
-            
-        except AuthenticationError:
+
+        except AuthenticationError as e:
             return "not_authorized_key"
-        except RateLimitError:
+        except RateLimitError as e:
             return "rate_limited"
+        except NotFoundError as e:
+            # 模型不存在，但密钥可能是有效的
+            error_msg = str(e).lower()
+            if "model" in error_msg:
+                logger.warning(f"[{self.name}] Model not found, but key might be valid: {e}")
+                return "error:model_not_found"
+            return "not_authorized_key"
+        except BadRequestError as e:
+            # 请求参数错误，可能是模型配置问题
+            error_msg = str(e).lower()
+            if "model" in error_msg or "not found" in error_msg:
+                logger.warning(f"[{self.name}] Bad request (likely model issue): {e}")
+                return "error:model_not_found"
+            return f"error:bad_request"
         except APIError as e:
-            if "quota" in str(e).lower() or "limit" in str(e).lower():
+            error_msg = str(e).lower()
+            if "quota" in error_msg or "limit" in error_msg:
                 return "rate_limited:429"
-            elif "disabled" in str(e).lower() or "deactivated" in str(e).lower():
+            elif "disabled" in error_msg or "deactivated" in error_msg:
                 return "disabled"
+            elif "model" in error_msg or "not found" in error_msg:
+                logger.warning(f"[{self.name}] Model error: {e}")
+                return "error:model_not_found"
             else:
+                logger.error(f"[{self.name}] API error: {e}")
                 return f"error:{e.__class__.__name__}"
         except Exception as e:
+            logger.error(f"[{self.name}] Unexpected error validating key: {e}")
             return f"error:{e.__class__.__name__}"
     
     def extract_keys_from_content(self, content: str) -> List[str]:

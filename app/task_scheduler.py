@@ -157,7 +157,7 @@ class TaskScheduler:
                     for key in keys:
                         validation_result = provider.validate_key(key)
 
-                        if validation_result and "ok" in validation_result:
+                        if validation_result == "ok":
                             status = 'valid'
                             logger.info(f"✅ VALID {provider_name.upper()}: {key[:20]}...")
                         elif "rate_limited" in validation_result:
