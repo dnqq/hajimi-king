@@ -65,7 +65,6 @@ class TaskScheduler:
     def _search_worker(self):
         """搜索线程：执行 GitHub 搜索"""
         from utils.github_client import GitHubClient
-        from utils.file_manager import file_manager
 
         github_client = GitHubClient(config.GITHUB_TOKENS)
 
@@ -274,9 +273,7 @@ class TaskScheduler:
             logger.error(f"Failed to sync pending keys: {e}")
 
     def _get_search_queries(self):
-        """获取搜索查询（自动生成 + 自定义）"""
-        from utils.file_manager import file_manager
-
+        """获取搜索查询（自动生成，数据库模式）"""
         auto_queries = []
         providers = config.AI_PROVIDERS_CONFIG
 
@@ -306,10 +303,7 @@ class TaskScheduler:
                 for lang in languages:
                     auto_queries.append(f'"{provider_name}_API_KEY" = "{prefix}" language:{lang}')
 
-        # 自定义查询
-        custom_queries = file_manager.get_search_queries()
-
-        return auto_queries + custom_queries
+        return auto_queries
 
     def shutdown(self):
         """停止所有线程"""
