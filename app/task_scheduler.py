@@ -177,12 +177,12 @@ class TaskScheduler:
                             source_file_path=file_path,
                             source_file_url=file_url,
                             source_file_sha=file_sha,
-                            gpt_load_group_name=group_name,
+                            gpt_load_group_name=group_name if group_name else None,
                             metadata={'validation_result': validation_result}
                         )
 
-                        # 有效的 Key 放入同步队列
-                        if status == 'valid' and key_id:
+                        # 有效的 Key 放入同步队列（只有配置了 group_name 才同步）
+                        if status == 'valid' and key_id and group_name and group_name.strip():
                             self.validation_queue.put({
                                 'key_id': key_id,
                                 'key': key,
@@ -254,10 +254,15 @@ class TaskScheduler:
 
             for key_obj in pending_keys:
                 try:
+                    # 检查是否配置了 group_name
+                    if not key_obj.gpt_load_group_name or not key_obj.gpt_load_group_name.strip():
+                        logger.warning(f"⚠️ Skipping key {key_obj.id}: no gpt_load_group_name configured")
+                        continue
+
                     from utils.crypto import key_encryption
                     decrypted_key = key_encryption.decrypt_key(key_obj.key_encrypted)
 
-                    result = sync_utils._send_gpt_load_worker([decrypted_key], key_obj.gpt_load_group_name or "")
+                    result = sync_utils._send_gpt_load_worker([decrypted_key], key_obj.gpt_load_group_name)
 
                     if result == "success":
                         db_manager.mark_key_synced(key_obj.id, 'gpt_load', success=True)

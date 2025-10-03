@@ -222,8 +222,8 @@ class SyncUtils:
             str: "success" if success, otherwise an error code string.
         """
         try:
-            # 如果提供了group_name，只发送到指定group；否则发送到所有group
-            target_group_names = [group_name] if group_name else self.gpt_load_group_names
+            # 如果提供了group_name（非空字符串），只发送到指定group；否则发送到所有group
+            target_group_names = [group_name] if (group_name and group_name.strip()) else self.gpt_load_group_names
 
             logger.info(f"🔄 Sending {len(keys)} key(s) to GPT load balancer for {len(target_group_names)} group(s)...")
 
