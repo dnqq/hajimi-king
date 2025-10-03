@@ -37,12 +37,38 @@ async def list_keys(
         query = query.filter(APIKey.status == status)
 
     if search:
-        query = query.filter(
+        # 模糊查询：仓库名、文件路径、或解密后的密钥内容
+        # 注意：搜索密钥内容需要解密所有 key，性能较低，但数据量不大时可接受
+        search_pattern = f"%{search}%"
+
+        # 先按仓库名和文件路径过滤（高效）
+        filtered_keys = query.filter(
             or_(
-                APIKey.source_repo.ilike(f"%{search}%"),
-                APIKey.key_hash.ilike(f"%{search}%")
+                APIKey.source_repo.ilike(search_pattern),
+                APIKey.source_file_path.ilike(search_pattern)
             )
-        )
+        ).all()
+
+        # 如果搜索词像是密钥片段（包含字母数字），也搜索密钥内容
+        if any(c.isalnum() for c in search):
+            # 获取所有未过滤的 keys，检查密钥内容
+            all_keys = query.all()
+            for key in all_keys:
+                try:
+                    decrypted = key_encryption.decrypt_key(key.key_encrypted)
+                    if search.lower() in decrypted.lower():
+                        if key not in filtered_keys:
+                            filtered_keys.append(key)
+                except Exception:
+                    pass
+
+        # 替换查询为过滤后的 ID 列表
+        if filtered_keys:
+            key_ids = [k.id for k in filtered_keys]
+            query = db.query(APIKey).filter(APIKey.id.in_(key_ids))
+        else:
+            # 没有匹配，返回空
+            query = db.query(APIKey).filter(APIKey.id == -1)
 
     # 总数
     total = query.count()
