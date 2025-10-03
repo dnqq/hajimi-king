@@ -25,7 +25,12 @@
         .header {
             background: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 16px 24px;
+            padding: 16px 0;
+        }
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -34,6 +39,9 @@
             font-size: 24px;
             font-weight: bold;
             color: #409eff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .nav {
             display: flex;
@@ -95,15 +103,21 @@
 <body>
     <div id="app">
         <div class="header">
-            <div class="nav-wrapper">
+            <div class="header-content">
                 <div style="display: flex; align-items: center; gap: 2rem;">
-                    <div class="logo">🎪 Hajimi King</div>
+                    <div class="logo">
+                        <span style="font-size: 28px;">👑</span>
+                        <span>Hajimi King</span>
+                    </div>
                     <div class="nav">
                         <a href="/" class="active">📊 仪表盘</a>
                         <a href="/keys">🔑 密钥管理</a>
                         <a href="/stats">📈 统计分析</a>
                         <a href="/config">⚙️ 系统配置</a>
                     </div>
+                </div>
+                <div>
+                    <el-button type="danger" size="small" @click="logout">退出登录</el-button>
                 </div>
             </div>
         </div>
@@ -408,6 +422,10 @@
                 formatTime(timestamp) {
                     const date = new Date(timestamp);
                     return date.toLocaleString('zh-CN');
+                },
+                logout() {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/login';
                 }
             }
         }).use(ElementPlus).mount('#app');

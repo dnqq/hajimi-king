@@ -20,7 +20,12 @@
         .header {
             background: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 16px 24px;
+            padding: 16px 0;
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -29,6 +34,9 @@
             font-size: 24px;
             font-weight: bold;
             color: #409eff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .nav {
             display: flex;
@@ -65,23 +73,41 @@
         .provider-card {
             border: 1px solid #dcdfe6;
             border-radius: 6px;
-            padding: 16px;
             margin-bottom: 16px;
         }
         .provider-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            padding: 16px;
+            cursor: pointer;
+            user-select: none;
+            background: #f5f7fa;
+            border-radius: 6px 6px 0 0;
+        }
+        .provider-header:hover {
+            background: #e9ecef;
+        }
+        .provider-content {
+            padding: 16px;
+        }
+        .collapse-icon {
+            transition: transform 0.3s;
+        }
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
         }
     </style>
 </head>
 <body>
     <div id="app">
         <div class="header">
-            <div class="nav-wrapper">
+            <div class="header-content">
                 <div style="display: flex; align-items: center; gap: 2rem;">
-                    <div class="logo">🎪 Hajimi King</div>
+                    <div class="logo">
+                        <span style="font-size: 28px;">👑</span>
+                        <span>Hajimi King</span>
+                    </div>
                     <div class="nav">
                         <a href="/">📊 仪表盘</a>
                         <a href="/keys">🔑 密钥管理</a>
@@ -101,12 +127,16 @@
                 <div class="section-title">AI 供应商配置</div>
 
                 <div v-for="(provider, index) in config.ai_providers" :key="index" class="provider-card">
-                    <div class="provider-header">
-                        <h4>供应商 #{{ index + 1 }}</h4>
-                        <el-button type="danger" size="small" @click="removeProvider(index)">删除</el-button>
+                    <div class="provider-header" @click="toggleProvider(index)">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="collapse-icon" :class="{ collapsed: !provider.expanded }">▼</span>
+                            <h4 style="margin: 0;">{{ provider.name || `供应商 #${index + 1}` }}</h4>
+                        </div>
+                        <el-button type="danger" size="small" @click.stop="removeProvider(index)">删除</el-button>
                     </div>
 
-                    <el-form label-width="150px">
+                    <div v-show="provider.expanded" class="provider-content">
+                        <el-form label-width="150px">
                         <el-form-item label="供应商名称">
                             <el-input v-model="provider.name" placeholder="例如: gemini"></el-input>
                         </el-form-item>
@@ -142,7 +172,8 @@
                         <el-form-item label="跳过 AI 分析">
                             <el-switch v-model="provider.skip_ai_analysis"></el-switch>
                         </el-form-item>
-                    </el-form>
+                        </el-form>
+                    </div>
                 </div>
 
                 <el-button type="primary" @click="addProvider">添加供应商</el-button>
@@ -331,10 +362,11 @@
                             this.githubProxyText = (data.github.proxy || []).join('\n');
                             this.searchBlacklistText = (data.search.file_path_blacklist || []).join(', ');
 
-                            // 确保 ai_providers 每个元素都有 key_patterns 数组
+                            // 确保 ai_providers 每个元素都有 key_patterns 数组和 expanded 属性（默认折叠）
                             this.config.ai_providers = (data.ai_providers || []).map(p => ({
                                 ...p,
-                                key_patterns: p.key_patterns || ['']
+                                key_patterns: p.key_patterns || [''],
+                                expanded: false  // 默认折叠
                             }));
                         } else if (response.status === 401) {
                             this.$message.error('认证失败，请重新登录');
@@ -347,6 +379,9 @@
                         this.loading = false;
                     }
                 },
+                toggleProvider(index) {
+                    this.config.ai_providers[index].expanded = !this.config.ai_providers[index].expanded;
+                },
                 addProvider() {
                     this.config.ai_providers.push({
                         name: '',
@@ -356,7 +391,8 @@
                         api_base_url: '',
                         key_patterns: [''],
                         gpt_load_group_name: '',
-                        skip_ai_analysis: false
+                        skip_ai_analysis: false,
+                        expanded: true  // 新添加的默认展开
                     });
                 },
                 removeProvider(index) {
