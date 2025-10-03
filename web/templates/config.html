@@ -8,6 +8,13 @@
     <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
     <script src="/static/js/vue.global.prod.js"></script>
     <script src="/static/js/element-plus.js"></script>
+    <!-- Navbar Component -->
+    <script src="/static/js/navbar.js"></script>
+    <style id="navbar-styles"></style>
+    <script>
+        // 注入导航栏样式
+        document.getElementById('navbar-styles').textContent = navbarStyles;
+    </script>
     <style>
         body {
             margin: 0;
@@ -16,40 +23,6 @@
         }
         #app {
             min-height: 100vh;
-        }
-        .header {
-            background: #fff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 16px 0;
-        }
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: #409eff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .nav {
-            display: flex;
-            gap: 20px;
-        }
-        .nav a {
-            text-decoration: none;
-            color: #606266;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-        .nav a:hover, .nav a.active {
-            color: #409eff;
         }
         .main-container {
             padding: 24px;
@@ -101,25 +74,7 @@
 </head>
 <body>
     <div id="app">
-        <div class="header">
-            <div class="header-content">
-                <div style="display: flex; align-items: center; gap: 2rem;">
-                    <div class="logo">
-                        <span style="font-size: 28px;">👑</span>
-                        <span>Hajimi King</span>
-                    </div>
-                    <div class="nav">
-                        <a href="/">📊 仪表盘</a>
-                        <a href="/keys">🔑 密钥管理</a>
-                        <a href="/stats">📈 统计分析</a>
-                        <a href="/config" class="active">⚙️ 系统配置</a>
-                    </div>
-                </div>
-                <div>
-                    <el-button type="danger" size="small" @click="logout">退出登录</el-button>
-                </div>
-            </div>
-        </div>
+        <nav-bar active-page="config"></nav-bar>
 
         <div class="main-container" v-loading="loading">
             <!-- AI 供应商配置 -->
@@ -538,10 +493,9 @@
                         this.loading = false;
                     }
                 },
-                logout() {
-                    localStorage.removeItem('access_token');
-                    window.location.href = '/login';
-                }
+            },
+            components: {
+                'nav-bar': NavBar
             }
         });
 
