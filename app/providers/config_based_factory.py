@@ -60,7 +60,11 @@ class OpenAIStyleProvider(ConfigBasedAIProvider):
                 import httpx
                 proxy_url = proxy_config.get('http') or proxy_config.get('https')
                 if proxy_url:
-                    client_kwargs["http_client"] = httpx.Client(proxies=proxy_url)
+                    # httpx.Client 的 proxies 参数需要是字典格式
+                    client_kwargs["http_client"] = httpx.Client(proxies={
+                        "http://": proxy_url,
+                        "https://": proxy_url
+                    })
 
             client = OpenAI(**client_kwargs)
 
