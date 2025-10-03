@@ -67,7 +67,7 @@ class TaskScheduler:
         from utils.github_client import GitHubClient
         from utils.file_manager import file_manager
 
-        github_client = GitHubClient()
+        github_client = GitHubClient(config.GITHUB_TOKENS)
 
         while not self.shutdown_flag.is_set():
             try:
@@ -119,7 +119,7 @@ class TaskScheduler:
 
     def _validation_worker(self):
         """校验线程：验证 Keys"""
-        from app.key_extractor import ConfigKeyExtractor
+        from app.providers.config_key_extractor import ConfigKeyExtractor
 
         config_key_extractor = ConfigKeyExtractor()
 
@@ -140,7 +140,7 @@ class TaskScheduler:
 
                 # 下载文件内容
                 from utils.github_client import GitHubClient
-                github_client = GitHubClient()
+                github_client = GitHubClient(config.GITHUB_TOKENS)
                 content = github_client.get_file_content(item.get("url"))
 
                 if not content:
