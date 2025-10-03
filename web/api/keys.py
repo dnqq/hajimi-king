@@ -342,12 +342,195 @@ async def batch_sync(key_ids: List[int], db: Session = Depends(get_db)):
 
 @router.get("/export/csv")
 async def export_keys_csv(
-    provider: Optional[str] = None,
-    status: Optional[str] = None,
+    provider: Optional[str] = Query(None, description="按供应商筛选"),
+    status: Optional[str] = Query(None, description="按状态筛选"),
+    sync_status: Optional[str] = Query(None, description="按同步状态筛选"),
+    search: Optional[str] = Query(None, description="搜索仓库名或密钥"),
     db: Session = Depends(get_db)
 ):
     """
-    导出密钥为 CSV（待实现）
+    导出密钥为 CSV
     """
-    # TODO: 实现 CSV 导出
-    return {"message": "CSV export not implemented yet"}
+    from fastapi.responses import StreamingResponse
+    import io
+    import csv
+
+    # 使用相同的查询逻辑
+    query = db.query(APIKey)
+
+    if provider:
+        query = query.filter(APIKey.provider == provider)
+
+    if status:
+        query = query.filter(APIKey.status == status)
+
+    if sync_status:
+        if sync_status == 'synced':
+            query = query.filter(
+                or_(APIKey.synced_to_balancer == True, APIKey.synced_to_gpt_load == True)
+            )
+        elif sync_status == 'not_synced':
+            query = query.filter(
+                and_(APIKey.synced_to_balancer == False, APIKey.synced_to_gpt_load == False)
+            )
+
+    if search:
+        search_pattern = f"%{search}%"
+        filtered_keys = query.filter(
+            or_(
+                APIKey.source_repo.ilike(search_pattern),
+                APIKey.source_file_path.ilike(search_pattern)
+            )
+        ).all()
+
+        if any(c.isalnum() for c in search):
+            all_keys = query.all()
+            for key in all_keys:
+                try:
+                    decrypted = key_encryption.decrypt_key(key.key_encrypted)
+                    if search.lower() in decrypted.lower():
+                        if key not in filtered_keys:
+                            filtered_keys.append(key)
+                except Exception:
+                    pass
+
+        if filtered_keys:
+            key_ids = [k.id for k in filtered_keys]
+            query = db.query(APIKey).filter(APIKey.id.in_(key_ids))
+        else:
+            query = db.query(APIKey).filter(APIKey.id == -1)
+
+    keys = query.order_by(desc(APIKey.discovered_at)).all()
+
+    # 创建 CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # 写入表头
+    writer.writerow([
+        'ID', '供应商', '密钥', '状态', '来源仓库', '文件路径',
+        '发现时间', '最后验证时间', '同步到Balancer', '同步到GPT Load', 'GPT Load分组'
+    ])
+
+    # 写入数据
+    for key in keys:
+        try:
+            decrypted_key = key_encryption.decrypt_key(key.key_encrypted)
+        except Exception:
+            decrypted_key = "DECRYPT_ERROR"
+
+        writer.writerow([
+            key.id,
+            key.provider,
+            decrypted_key,
+            key.status,
+            key.source_repo or '',
+            key.source_file_path or '',
+            key.discovered_at.isoformat() if key.discovered_at else '',
+            key.last_validated_at.isoformat() if key.last_validated_at else '',
+            '是' if key.synced_to_balancer else '否',
+            '是' if key.synced_to_gpt_load else '否',
+            key.gpt_load_group_name or ''
+        ])
+
+    output.seek(0)
+
+    return StreamingResponse(
+        iter([output.getvalue().encode('utf-8-sig')]),  # UTF-8 BOM for Excel
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=keys_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
+    )
+
+
+@router.get("/export/json")
+async def export_keys_json(
+    provider: Optional[str] = Query(None, description="按供应商筛选"),
+    status: Optional[str] = Query(None, description="按状态筛选"),
+    sync_status: Optional[str] = Query(None, description="按同步状态筛选"),
+    search: Optional[str] = Query(None, description="搜索仓库名或密钥"),
+    db: Session = Depends(get_db)
+):
+    """
+    导出密钥为 JSON
+    """
+    from fastapi.responses import StreamingResponse
+    import json
+
+    # 使用相同的查询逻辑
+    query = db.query(APIKey)
+
+    if provider:
+        query = query.filter(APIKey.provider == provider)
+
+    if status:
+        query = query.filter(APIKey.status == status)
+
+    if sync_status:
+        if sync_status == 'synced':
+            query = query.filter(
+                or_(APIKey.synced_to_balancer == True, APIKey.synced_to_gpt_load == True)
+            )
+        elif sync_status == 'not_synced':
+            query = query.filter(
+                and_(APIKey.synced_to_balancer == False, APIKey.synced_to_gpt_load == False)
+            )
+
+    if search:
+        search_pattern = f"%{search}%"
+        filtered_keys = query.filter(
+            or_(
+                APIKey.source_repo.ilike(search_pattern),
+                APIKey.source_file_path.ilike(search_pattern)
+            )
+        ).all()
+
+        if any(c.isalnum() for c in search):
+            all_keys = query.all()
+            for key in all_keys:
+                try:
+                    decrypted = key_encryption.decrypt_key(key.key_encrypted)
+                    if search.lower() in decrypted.lower():
+                        if key not in filtered_keys:
+                            filtered_keys.append(key)
+                except Exception:
+                    pass
+
+        if filtered_keys:
+            key_ids = [k.id for k in filtered_keys]
+            query = db.query(APIKey).filter(APIKey.id.in_(key_ids))
+        else:
+            query = db.query(APIKey).filter(APIKey.id == -1)
+
+    keys = query.order_by(desc(APIKey.discovered_at)).all()
+
+    # 构建 JSON 数据
+    export_data = []
+    for key in keys:
+        try:
+            decrypted_key = key_encryption.decrypt_key(key.key_encrypted)
+        except Exception:
+            decrypted_key = "DECRYPT_ERROR"
+
+        export_data.append({
+            "id": key.id,
+            "provider": key.provider,
+            "key": decrypted_key,
+            "status": key.status,
+            "source_repo": key.source_repo,
+            "source_file_path": key.source_file_path,
+            "source_file_url": key.source_file_url,
+            "discovered_at": key.discovered_at.isoformat() if key.discovered_at else None,
+            "last_validated_at": key.last_validated_at.isoformat() if key.last_validated_at else None,
+            "synced_to_balancer": key.synced_to_balancer,
+            "synced_to_gpt_load": key.synced_to_gpt_load,
+            "gpt_load_group_name": key.gpt_load_group_name,
+            "extra_data": key.extra_data
+        })
+
+    json_str = json.dumps(export_data, indent=2, ensure_ascii=False)
+
+    return StreamingResponse(
+        iter([json_str.encode('utf-8')]),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=keys_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"}
+    )

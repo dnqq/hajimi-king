@@ -46,19 +46,38 @@
             width: 100%;
             height: 400px;
         }
-        .time-range-selector {
+        .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
-            padding: 16px 24px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 16px;
         }
-        .time-range-buttons {
-            display: flex;
-            gap: 8px;
+        .time-range-tabs {
+            display: inline-flex;
+            background: #f5f7fa;
+            border-radius: 8px;
+            padding: 4px;
+            gap: 4px;
+        }
+        .time-range-tab {
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #606266;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            background: transparent;
+        }
+        .time-range-tab:hover {
+            color: #409eff;
+            background: rgba(64, 158, 255, 0.1);
+        }
+        .time-range-tab.active {
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
         }
     </style>
 </head>
@@ -67,50 +86,21 @@
         <nav-bar active-page="stats"></nav-bar>
 
         <div class="main-container">
-            <!-- 时间范围选择器 -->
-            <div class="time-range-selector">
-                <div>
-                    <strong style="font-size: 16px; margin-right: 16px;">时间范围:</strong>
-                    <el-radio-group v-model="timeRange" @change="onTimeRangeChange" size="default">
-                        <el-radio-button label="7">最近7天</el-radio-button>
-                        <el-radio-button label="30">最近30天</el-radio-button>
-                        <el-radio-button label="90">最近90天</el-radio-button>
-                        <el-radio-button label="custom">自定义</el-radio-button>
-                    </el-radio-group>
+            <!-- 密钥发现趋势 -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">密钥发现趋势</div>
+                    <div class="time-range-tabs">
+                        <button
+                            v-for="range in timeRanges"
+                            :key="range.value"
+                            :class="['time-range-tab', { active: timeRange === range.value }]"
+                            @click="selectTimeRange(range.value)"
+                        >
+                            {{ range.label }}
+                        </button>
+                    </div>
                 </div>
-                <div v-if="timeRange === 'custom'" style="margin-left: 16px;">
-                    <el-date-picker
-                        v-model="customDateRange"
-                        type="daterange"
-                        range-separator="至"
-                        start-placeholder="开始日期"
-                        end-placeholder="结束日期"
-                        @change="onCustomDateChange"
-                        size="default"
-                    />
-                </div>
-            </div>
-            <!-- 供应商对比 -->
-            <div class="chart-container">
-                <div class="chart-title">供应商密钥数量对比</div>
-                <div ref="providerCompareChart" class="chart"></div>
-            </div>
-
-            <!-- 供应商有效率对比 -->
-            <div class="chart-container">
-                <div class="chart-title">供应商有效率对比</div>
-                <div ref="providerValidRateChart" class="chart"></div>
-            </div>
-
-            <!-- 供应商有效率趋势 -->
-            <div class="chart-container">
-                <div class="chart-title">供应商有效率变化趋势</div>
-                <div ref="validityTrendChart" class="chart"></div>
-            </div>
-
-            <!-- 每日趋势 -->
-            <div class="chart-container">
-                <div class="chart-title">最近30天密钥发现趋势</div>
                 <div ref="dailyTrendChart" class="chart"></div>
             </div>
 
@@ -118,44 +108,6 @@
             <div class="chart-container">
                 <div class="chart-title">Top 10 密钥来源仓库</div>
                 <div ref="topReposChart" class="chart"></div>
-            </div>
-
-            <!-- 同步状态 -->
-            <div class="chart-container">
-                <div class="chart-title">同步状态</div>
-                <el-row :gutter="20">
-                    <el-col :span="12">
-                        <el-card>
-                            <template #header>
-                                <span>Gemini Balancer</span>
-                            </template>
-                            <div>
-                                <p>待同步: {{ syncStatus.balancer?.pending_count || 0 }} 个密钥</p>
-                                <p>最近1小时: {{ syncStatus.balancer?.recent_synced || 0 }} 个已同步</p>
-                            </div>
-                        </el-card>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-card>
-                            <template #header>
-                                <span>GPT Load</span>
-                            </template>
-                            <div>
-                                <p>待同步: {{ syncStatus.gpt_load?.pending_count || 0 }} 个密钥</p>
-                                <p>最近1小时: {{ syncStatus.gpt_load?.recent_synced || 0 }} 个已同步</p>
-                            </div>
-                        </el-card>
-                    </el-col>
-                </el-row>
-            </div>
-
-            <!-- 导出功能 -->
-            <div class="chart-container">
-                <div class="chart-title">导出密钥</div>
-                <el-space>
-                    <el-button type="success" @click="exportCSV">导出 CSV</el-button>
-                    <el-button type="success" @click="exportJSON">导出 JSON</el-button>
-                </el-space>
             </div>
         </div>
     </div>
@@ -167,13 +119,15 @@
         createApp({
             data() {
                 return {
-                    providerStats: [],
                     dailyStats: [],
-                    validityTrendData: [],
                     topRepos: [],
-                    syncStatus: {},
                     timeRange: '30',
-                    customDateRange: null
+                    timeRanges: [
+                        { value: '7', label: '最近7天' },
+                        { value: '15', label: '最近15天' },
+                        { value: '30', label: '最近30天' },
+                        { value: '90', label: '最近90天' }
+                    ]
                 };
             },
             mounted() {
@@ -188,44 +142,16 @@
             },
             methods: {
                 async loadData() {
-                    await this.loadProviderStats();
                     await this.loadDailyStats();
-                    await this.loadValidityTrend();
                     await this.loadTopRepos();
-                    await this.loadSyncStatus();
                 },
-                onTimeRangeChange(value) {
-                    if (value !== 'custom') {
-                        this.loadData();
-                    }
-                },
-                onCustomDateChange(dateRange) {
-                    if (dateRange && dateRange.length === 2) {
-                        this.loadData();
-                    }
-                },
-                getDaysFromRange() {
-                    if (this.timeRange === 'custom' && this.customDateRange && this.customDateRange.length === 2) {
-                        const start = new Date(this.customDateRange[0]);
-                        const end = new Date(this.customDateRange[1]);
-                        return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-                    }
-                    return parseInt(this.timeRange);
-                },
-                async loadProviderStats() {
-                    try {
-                        const response = await fetch('/api/stats/providers', {
-                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                        });
-                        this.providerStats = await response.json();
-                        this.renderProviderCharts();
-                    } catch (error) {
-                        ElMessage.error('加载供应商统计失败');
-                    }
+                selectTimeRange(value) {
+                    this.timeRange = value;
+                    this.loadDailyStats();
                 },
                 async loadDailyStats() {
                     try {
-                        const days = this.getDaysFromRange();
+                        const days = parseInt(this.timeRange);
                         const response = await fetch(`/api/stats/daily?days=${days}`, {
                             headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
                         });
@@ -233,18 +159,6 @@
                         this.renderDailyTrendChart();
                     } catch (error) {
                         ElMessage.error('加载每日统计失败');
-                    }
-                },
-                async loadValidityTrend() {
-                    try {
-                        const days = this.getDaysFromRange();
-                        const response = await fetch(`/api/stats/provider-validity-trend?days=${days}`, {
-                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                        });
-                        this.validityTrendData = await response.json();
-                        this.renderValidityTrendChart();
-                    } catch (error) {
-                        ElMessage.error('加载有效率趋势失败');
                     }
                 },
                 async loadTopRepos() {
@@ -258,150 +172,87 @@
                         ElMessage.error('加载仓库统计失败');
                     }
                 },
-                async loadSyncStatus() {
-                    try {
-                        const response = await fetch('/api/sync/status', {
-                            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                        });
-                        this.syncStatus = await response.json();
-                    } catch (error) {
-                        ElMessage.error('加载同步状态失败');
-                    }
-                },
-                renderProviderCharts() {
-                    // 密钥数量对比
-                    const compareChart = echarts.init(this.$refs.providerCompareChart);
-                    compareChart.setOption({
-                        tooltip: { trigger: 'axis' },
-                        legend: { data: ['总数', '有效', '限流', '无效'] },
-                        xAxis: {
-                            type: 'category',
-                            data: this.providerStats.map(p => p.provider)
-                        },
-                        yAxis: { type: 'value' },
-                        series: [
-                            { name: '总数', type: 'bar', data: this.providerStats.map(p => p.total_keys) },
-                            { name: '有效', type: 'bar', data: this.providerStats.map(p => p.valid_keys), itemStyle: { color: '#67c23a' } },
-                            { name: '限流', type: 'bar', data: this.providerStats.map(p => p.rate_limited_keys), itemStyle: { color: '#e6a23c' } },
-                            { name: '无效', type: 'bar', data: this.providerStats.map(p => p.invalid_keys), itemStyle: { color: '#f56c6c' } }
-                        ]
-                    });
-
-                    // 有效率对比
-                    const validRateChart = echarts.init(this.$refs.providerValidRateChart);
-                    validRateChart.setOption({
-                        tooltip: { trigger: 'axis', formatter: '{b}: {c}%' },
-                        xAxis: {
-                            type: 'category',
-                            data: this.providerStats.map(p => p.provider)
-                        },
-                        yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
-                        series: [{
-                            name: '有效率',
-                            type: 'bar',
-                            data: this.providerStats.map(p => p.valid_rate),
-                            itemStyle: { color: '#409eff' }
-                        }]
-                    });
-                },
                 renderDailyTrendChart() {
                     const chart = echarts.init(this.$refs.dailyTrendChart);
 
-                    // 按日期分组
+                    // 按日期和供应商分组
                     const dateMap = {};
+                    const providerColors = {
+                        'gemini': '#4285f4',
+                        'openai': '#10a37f',
+                        'anthropic': '#d4a373',
+                        'cerebras': '#ff6b6b'
+                    };
+
+                    // 收集所有供应商
+                    const providers = [...new Set(this.dailyStats.map(item => item.provider))];
+
+                    // 按日期分组，每个日期包含各供应商的数据
                     this.dailyStats.forEach(item => {
                         const dateStr = new Date(item.date).toLocaleDateString('zh-CN');
-                        if (!dateMap[dateStr]) dateMap[dateStr] = 0;
-                        dateMap[dateStr] += item.keys_discovered;
+                        if (!dateMap[dateStr]) {
+                            dateMap[dateStr] = {};
+                        }
+                        dateMap[dateStr][item.provider] = item.keys_discovered;
                     });
 
                     const dates = Object.keys(dateMap).sort();
-                    const values = dates.map(date => dateMap[date]);
 
-                    chart.setOption({
-                        tooltip: { trigger: 'axis' },
-                        xAxis: { type: 'category', data: dates },
-                        yAxis: { type: 'value' },
-                        series: [{
-                            name: '发现密钥数',
-                            type: 'line',
-                            smooth: true,
-                            data: values,
-                            areaStyle: { color: 'rgba(64, 158, 255, 0.2)' },
-                            itemStyle: { color: '#409eff' }
-                        }]
-                    });
-                },
-                renderValidityTrendChart() {
-                    const chart = echarts.init(this.$refs.validityTrendChart);
-
-                    // 按供应商分组数据
-                    const providerMap = {};
-                    this.validityTrendData.forEach(item => {
-                        if (!providerMap[item.provider]) {
-                            providerMap[item.provider] = {};
-                        }
-                        const dateStr = new Date(item.date).toLocaleDateString('zh-CN');
-                        providerMap[item.provider][dateStr] = item.valid_rate;
-                    });
-
-                    // 获取所有日期并排序
-                    const allDates = [...new Set(this.validityTrendData.map(item =>
-                        new Date(item.date).toLocaleDateString('zh-CN')
-                    ))].sort();
-
-                    // 为每个供应商创建一条折线
-                    const colors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399', '#00d4ff', '#ff6b9d'];
-                    const series = Object.keys(providerMap).map((provider, index) => {
-                        const data = allDates.map(date => providerMap[provider][date] || null);
+                    // 为每个供应商创建一个系列
+                    const series = providers.map((provider, index) => {
+                        const defaultColors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399'];
                         return {
                             name: provider,
                             type: 'line',
                             smooth: true,
-                            data: data,
-                            itemStyle: { color: colors[index % colors.length] },
-                            lineStyle: { width: 2 },
-                            symbol: 'circle',
-                            symbolSize: 6,
-                            connectNulls: true
+                            data: dates.map(date => dateMap[date][provider] || 0),
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 0, y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: `${providerColors[provider] || defaultColors[index % defaultColors.length]}40` },
+                                        { offset: 1, color: `${providerColors[provider] || defaultColors[index % defaultColors.length]}10` }
+                                    ]
+                                }
+                            },
+                            itemStyle: { color: providerColors[provider] || defaultColors[index % defaultColors.length] },
+                            emphasis: {
+                                focus: 'series'
+                            }
                         };
                     });
 
                     chart.setOption({
                         tooltip: {
                             trigger: 'axis',
-                            formatter: (params) => {
-                                let result = `<strong>${params[0].axisValue}</strong><br/>`;
-                                params.forEach(item => {
-                                    if (item.value !== null) {
-                                        result += `${item.marker} ${item.seriesName}: ${item.value}%<br/>`;
-                                    }
-                                });
-                                return result;
+                            axisPointer: {
+                                type: 'cross',
+                                label: { backgroundColor: '#6a7985' }
                             }
                         },
                         legend: {
-                            data: Object.keys(providerMap),
-                            bottom: '0%',
-                            type: 'scroll'
+                            data: providers,
+                            top: '0%',
+                            textStyle: { fontSize: 12 }
                         },
                         grid: {
                             left: '3%',
                             right: '4%',
-                            bottom: '10%',
-                            top: '3%',
+                            bottom: '3%',
+                            top: '10%',
                             containLabel: true
                         },
                         xAxis: {
                             type: 'category',
-                            data: allDates,
-                            boundaryGap: false
+                            boundaryGap: false,
+                            data: dates,
+                            axisLabel: { fontSize: 11 }
                         },
                         yAxis: {
                             type: 'value',
-                            axisLabel: { formatter: '{value}%' },
-                            min: 0,
-                            max: 100
+                            name: '发现数量',
+                            axisLabel: { fontSize: 11 }
                         },
                         series: series
                     });
@@ -423,12 +274,6 @@
                             itemStyle: { color: '#409eff' }
                         }]
                     });
-                },
-                exportCSV() {
-                    window.open('/api/export/csv', '_blank');
-                },
-                exportJSON() {
-                    window.open('/api/export/json', '_blank');
                 }
             },
             components: {

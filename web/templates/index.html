@@ -75,17 +75,83 @@
         .stat-trend-icon {
             font-size: 16px;
         }
-        .stat-trends-detail {
+        .stat-main-trend {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: rgba(64, 158, 255, 0.05);
+            border-radius: 6px;
+            border-left: 3px solid #409eff;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .stat-main-trend:hover {
+            background: rgba(64, 158, 255, 0.1);
+            box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+        }
+        .main-trend-content {
             display: flex;
-            gap: 16px;
-            margin-top: 8px;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .trend-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .trend-badge.up {
+            background: rgba(103, 194, 58, 0.15);
+            color: #67c23a;
+        }
+        .trend-badge.down {
+            background: rgba(245, 108, 108, 0.15);
+            color: #f56c6c;
+        }
+        .trend-badge.neutral {
+            background: rgba(144, 147, 153, 0.15);
+            color: #909399;
+        }
+        .trend-detail-popup {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            padding: 12px;
+            z-index: 100;
+            display: none;
+        }
+        .stat-main-trend:hover .trend-detail-popup {
+            display: block;
+        }
+        .trend-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .trend-detail-row:last-child {
+            border-bottom: none;
+        }
+        .trend-detail-label {
             font-size: 12px;
             color: #909399;
         }
-        .trend-item {
+        .trend-detail-value {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
         }
         .chart-container {
             background: #fff;
@@ -103,6 +169,64 @@
             width: 100%;
             height: 400px;
         }
+        .sync-status-card {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .sync-status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            border-color: #667eea;
+        }
+        .sync-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+        }
+        .sync-icon {
+            font-size: 24px;
+        }
+        .sync-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .sync-card-body {
+            display: flex;
+            justify-content: space-around;
+            gap: 16px;
+        }
+        .sync-stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+        }
+        .sync-stat-label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .sync-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .sync-stat-value.pending {
+            color: #e6a23c;
+        }
+        .sync-stat-value.success {
+            color: #67c23a;
+        }
     </style>
 </head>
 <body>
@@ -115,63 +239,120 @@
                 <div class="stat-card">
                     <div class="stat-label">总密钥数</div>
                     <div class="stat-value" style="color: #409eff;">{{ stats.total_keys || 0 }}</div>
-                    <div v-if="stats.trends" class="stat-trends-detail">
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.total_keys_day.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.total_keys_day.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.total_keys_day.value) }}</span>
-                            <span style="color: #909399;">vs昨日</span>
+                    <div v-if="stats.trends" class="stat-main-trend">
+                        <div class="main-trend-content">
+                            <span style="color: #606266;">较上周</span>
+                            <span :class="['trend-badge', stats.trends.total_keys_week.direction]">
+                                <span>{{ getTrendIcon(stats.trends.total_keys_week.direction) }}</span>
+                                <span>{{ formatTrendValue(stats.trends.total_keys_week.value) }}</span>
+                                <span>({{ stats.trends.total_keys_week.rate }}%)</span>
+                            </span>
                         </div>
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.total_keys_week.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.total_keys_week.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.total_keys_week.value) }}</span>
-                            <span style="color: #909399;">vs上周</span>
-                        </div>
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.total_keys_month.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.total_keys_month.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.total_keys_month.value) }}</span>
-                            <span style="color: #909399;">vs上月</span>
+                        <div class="trend-detail-popup">
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比昨日</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_day.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.total_keys_day.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.total_keys_day.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.total_keys_day.rate }}%)</span>
+                                </span>
+                            </div>
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比上周</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_week.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.total_keys_week.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.total_keys_week.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.total_keys_week.rate }}%)</span>
+                                </span>
+                            </div>
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比上月</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.total_keys_month.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.total_keys_month.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.total_keys_month.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.total_keys_month.rate }}%)</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">有效密钥</div>
                     <div class="stat-value" style="color: #67c23a;">{{ stats.valid_keys || 0 }}</div>
-                    <div v-if="stats.trends" class="stat-trends-detail">
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.valid_keys_day.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.valid_keys_day.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.valid_keys_day.value) }}</span>
-                            <span style="color: #909399;">vs昨日</span>
+                    <div v-if="stats.trends" class="stat-main-trend" style="border-left-color: #67c23a; background: rgba(103, 194, 58, 0.05);">
+                        <div class="main-trend-content">
+                            <span style="color: #606266;">较上周</span>
+                            <span :class="['trend-badge', stats.trends.valid_keys_week.direction]">
+                                <span>{{ getTrendIcon(stats.trends.valid_keys_week.direction) }}</span>
+                                <span>{{ formatTrendValue(stats.trends.valid_keys_week.value) }}</span>
+                                <span>({{ stats.trends.valid_keys_week.rate }}%)</span>
+                            </span>
                         </div>
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.valid_keys_week.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.valid_keys_week.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.valid_keys_week.value) }}</span>
-                            <span style="color: #909399;">vs上周</span>
-                        </div>
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.valid_keys_month.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.valid_keys_month.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.valid_keys_month.value) }}</span>
-                            <span style="color: #909399;">vs上月</span>
+                        <div class="trend-detail-popup">
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比昨日</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_day.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.valid_keys_day.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.valid_keys_day.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.valid_keys_day.rate }}%)</span>
+                                </span>
+                            </div>
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比上周</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_week.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.valid_keys_week.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.valid_keys_week.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.valid_keys_week.rate }}%)</span>
+                                </span>
+                            </div>
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比上月</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.valid_keys_month.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.valid_keys_month.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.valid_keys_month.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.valid_keys_month.rate }}%)</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">限流密钥</div>
                     <div class="stat-value" style="color: #e6a23c;">{{ stats.rate_limited_keys || 0 }}</div>
-                    <div v-if="stats.trends" class="stat-trends-detail">
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.rate_limited_keys_day.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.rate_limited_keys_day.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.rate_limited_keys_day.value) }}</span>
-                            <span style="color: #909399;">vs昨日</span>
+                    <div v-if="stats.trends" class="stat-main-trend" style="border-left-color: #e6a23c; background: rgba(230, 162, 60, 0.05);">
+                        <div class="main-trend-content">
+                            <span style="color: #606266;">较上周</span>
+                            <span :class="['trend-badge', stats.trends.rate_limited_keys_week.direction]">
+                                <span>{{ getTrendIcon(stats.trends.rate_limited_keys_week.direction) }}</span>
+                                <span>{{ formatTrendValue(stats.trends.rate_limited_keys_week.value) }}</span>
+                                <span>({{ stats.trends.rate_limited_keys_week.rate }}%)</span>
+                            </span>
                         </div>
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.rate_limited_keys_week.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.rate_limited_keys_week.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.rate_limited_keys_week.value) }}</span>
-                            <span style="color: #909399;">vs上周</span>
-                        </div>
-                        <div class="trend-item" :style="{color: getTrendColor(stats.trends.rate_limited_keys_month.direction)}">
-                            <span>{{ getTrendIcon(stats.trends.rate_limited_keys_month.direction) }}</span>
-                            <span>{{ formatTrendValue(stats.trends.rate_limited_keys_month.value) }}</span>
-                            <span style="color: #909399;">vs上月</span>
+                        <div class="trend-detail-popup">
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比昨日</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_day.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.rate_limited_keys_day.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.rate_limited_keys_day.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.rate_limited_keys_day.rate }}%)</span>
+                                </span>
+                            </div>
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比上周</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_week.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.rate_limited_keys_week.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.rate_limited_keys_week.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.rate_limited_keys_week.rate }}%)</span>
+                                </span>
+                            </div>
+                            <div class="trend-detail-row">
+                                <span class="trend-detail-label">对比上月</span>
+                                <span class="trend-detail-value" :style="{color: getTrendColor(stats.trends.rate_limited_keys_month.direction)}">
+                                    <span>{{ getTrendIcon(stats.trends.rate_limited_keys_month.direction) }}</span>
+                                    <span>{{ formatTrendValue(stats.trends.rate_limited_keys_month.value) }}</span>
+                                    <span style="color: #909399;">({{ stats.trends.rate_limited_keys_month.rate }}%)</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -191,6 +372,49 @@
             <div class="chart-container">
                 <div class="chart-title">最近7天密钥发现趋势</div>
                 <div ref="trendChart" class="chart"></div>
+            </div>
+
+            <!-- 同步状态 -->
+            <div class="chart-container">
+                <div class="chart-title">同步状态</div>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <div class="sync-status-card">
+                            <div class="sync-card-header">
+                                <span class="sync-icon">🔄</span>
+                                <span class="sync-title">Gemini Balancer</span>
+                            </div>
+                            <div class="sync-card-body">
+                                <div class="sync-stat-item">
+                                    <span class="sync-stat-label">待同步</span>
+                                    <span class="sync-stat-value pending">{{ syncStatus.balancer?.pending_count || 0 }}</span>
+                                </div>
+                                <div class="sync-stat-item">
+                                    <span class="sync-stat-label">最近1小时</span>
+                                    <span class="sync-stat-value success">{{ syncStatus.balancer?.recent_synced || 0 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </el-col>
+                    <el-col :span="12">
+                        <div class="sync-status-card">
+                            <div class="sync-card-header">
+                                <span class="sync-icon">⚡</span>
+                                <span class="sync-title">GPT Load</span>
+                            </div>
+                            <div class="sync-card-body">
+                                <div class="sync-stat-item">
+                                    <span class="sync-stat-label">待同步</span>
+                                    <span class="sync-stat-value pending">{{ syncStatus.gpt_load?.pending_count || 0 }}</span>
+                                </div>
+                                <div class="sync-stat-item">
+                                    <span class="sync-stat-label">最近1小时</span>
+                                    <span class="sync-stat-value success">{{ syncStatus.gpt_load?.recent_synced || 0 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </el-col>
+                </el-row>
             </div>
 
             <!-- 最近发现的密钥 -->
@@ -228,6 +452,7 @@
                     providerStats: [],
                     dailyStats: [],
                     recentKeys: [],
+                    syncStatus: {},
                     providerChart: null,
                     trendChart: null
                 };
@@ -238,6 +463,7 @@
                 this.loadProviderStats();
                 this.loadDailyStats();
                 this.loadRecentKeys();
+                this.loadSyncStatus();
             },
             methods: {
                 checkAuth() {
@@ -311,114 +537,206 @@
                         ElMessage.error('加载最近密钥失败');
                     }
                 },
+                async loadSyncStatus() {
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/sync/status', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        this.syncStatus = await response.json();
+                    } catch (error) {
+                        console.error('加载同步状态失败:', error);
+                    }
+                },
                 renderProviderChart() {
                     if (!this.$refs.providerChart) return;
 
                     const chart = echarts.init(this.$refs.providerChart);
 
-                    // 准备堆叠条形图数据
+                    // 准备数据
                     const providers = this.providerStats.map(item => item.provider);
                     const validKeys = this.providerStats.map(item => item.valid_keys);
                     const rateLimitedKeys = this.providerStats.map(item => item.rate_limited_keys);
                     const invalidKeys = this.providerStats.map(item => item.invalid_keys);
 
-                    const option = {
-                        tooltip: {
-                            trigger: 'axis',
-                            axisPointer: {
-                                type: 'shadow'
-                            },
-                            formatter: (params) => {
-                                let result = `<strong>${params[0].axisValue}</strong><br/>`;
-                                let total = 0;
-                                params.forEach(item => {
-                                    total += item.value;
-                                    result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
-                                });
-                                result += `<strong>总计: ${total}</strong>`;
-                                return result;
-                            }
-                        },
-                        legend: {
-                            data: ['有效密钥', '限流密钥', '无效密钥'],
-                            bottom: '0%',
-                            left: 'center'
-                        },
-                        grid: {
-                            left: '3%',
-                            right: '4%',
-                            bottom: '10%',
-                            top: '3%',
-                            containLabel: true
-                        },
-                        xAxis: {
-                            type: 'value',
-                            axisLabel: {
-                                formatter: '{value}'
-                            }
-                        },
-                        yAxis: {
-                            type: 'category',
-                            data: providers,
-                            axisLabel: {
-                                fontSize: 13,
-                                fontWeight: 500
-                            }
-                        },
-                        series: [
-                            {
-                                name: '有效密钥',
-                                type: 'bar',
-                                stack: 'total',
-                                data: validKeys,
-                                itemStyle: {
-                                    color: '#67c23a',
-                                    borderRadius: [0, 0, 0, 0]
-                                },
-                                emphasis: {
-                                    focus: 'series'
+                    // 智能选择图表类型：供应商少用纵向柱状图，多用横向条形图
+                    const useVerticalBar = providers.length <= 5;
+
+                    if (useVerticalBar) {
+                        // 纵向柱状图（供应商在X轴）- 适合少量供应商
+                        const option = {
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: { type: 'shadow' },
+                                formatter: (params) => {
+                                    let result = `<strong>${params[0].axisValue}</strong><br/>`;
+                                    let total = 0;
+                                    params.forEach(item => {
+                                        total += item.value;
+                                        result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+                                    });
+                                    result += `<strong>总计: ${total}</strong>`;
+                                    return result;
                                 }
                             },
-                            {
-                                name: '限流密钥',
-                                type: 'bar',
-                                stack: 'total',
-                                data: rateLimitedKeys,
-                                itemStyle: {
-                                    color: '#e6a23c',
-                                    borderRadius: [0, 0, 0, 0]
-                                },
-                                emphasis: {
-                                    focus: 'series'
+                            legend: {
+                                data: ['有效密钥', '限流密钥', '无效密钥'],
+                                top: '0%'
+                            },
+                            grid: {
+                                left: '3%',
+                                right: '4%',
+                                bottom: '3%',
+                                top: '12%',
+                                containLabel: true
+                            },
+                            xAxis: {
+                                type: 'category',
+                                data: providers,
+                                axisLabel: {
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    rotate: providers.length > 3 ? 30 : 0
                                 }
                             },
-                            {
-                                name: '无效密钥',
-                                type: 'bar',
-                                stack: 'total',
-                                data: invalidKeys,
-                                itemStyle: {
-                                    color: '#f56c6c',
-                                    borderRadius: [0, 4, 4, 0]
+                            yAxis: {
+                                type: 'value',
+                                axisLabel: { formatter: '{value}' }
+                            },
+                            series: [
+                                {
+                                    name: '有效密钥',
+                                    type: 'bar',
+                                    stack: 'total',
+                                    data: validKeys,
+                                    itemStyle: { color: '#67c23a' },
+                                    emphasis: { focus: 'series' }
                                 },
-                                emphasis: {
-                                    focus: 'series'
+                                {
+                                    name: '限流密钥',
+                                    type: 'bar',
+                                    stack: 'total',
+                                    data: rateLimitedKeys,
+                                    itemStyle: { color: '#e6a23c' },
+                                    emphasis: { focus: 'series' }
                                 },
-                                label: {
-                                    show: true,
-                                    position: 'right',
-                                    formatter: (params) => {
-                                        const provider = this.providerStats[params.dataIndex];
-                                        return `总计: ${provider.total_keys}`;
+                                {
+                                    name: '无效密钥',
+                                    type: 'bar',
+                                    stack: 'total',
+                                    data: invalidKeys,
+                                    itemStyle: { color: '#f56c6c' },
+                                    emphasis: { focus: 'series' },
+                                    label: {
+                                        show: true,
+                                        position: 'top',
+                                        formatter: (params) => {
+                                            const provider = this.providerStats[params.dataIndex];
+                                            return provider.total_keys;
+                                        },
+                                        fontSize: 12,
+                                        fontWeight: 'bold',
+                                        color: '#606266'
+                                    }
+                                }
+                            ]
+                        };
+                        chart.setOption(option);
+                    } else {
+                        // 横向条形图（供应商在Y轴）- 适合大量供应商
+                        const option = {
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: { type: 'shadow' },
+                                formatter: (params) => {
+                                    let result = `<strong>${params[0].axisValue}</strong><br/>`;
+                                    let total = 0;
+                                    params.forEach(item => {
+                                        total += item.value;
+                                        result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+                                    });
+                                    result += `<strong>总计: ${total}</strong>`;
+                                    return result;
+                                }
+                            },
+                            legend: {
+                                data: ['有效密钥', '限流密钥', '无效密钥'],
+                                bottom: '0%',
+                                left: 'center'
+                            },
+                            grid: {
+                                left: '3%',
+                                right: '4%',
+                                bottom: '10%',
+                                top: '3%',
+                                containLabel: true
+                            },
+                            xAxis: {
+                                type: 'value',
+                                axisLabel: { formatter: '{value}' }
+                            },
+                            yAxis: {
+                                type: 'category',
+                                data: providers,
+                                axisLabel: {
+                                    fontSize: 13,
+                                    fontWeight: 500
+                                }
+                            },
+                            series: [
+                                {
+                                    name: '有效密钥',
+                                    type: 'bar',
+                                    stack: 'total',
+                                    data: validKeys,
+                                    itemStyle: {
+                                        color: '#67c23a',
+                                        borderRadius: [0, 0, 0, 0]
                                     },
-                                    fontSize: 12,
-                                    fontWeight: 'bold',
-                                    color: '#606266'
+                                    emphasis: { focus: 'series' }
+                                },
+                                {
+                                    name: '限流密钥',
+                                    type: 'bar',
+                                    stack: 'total',
+                                    data: rateLimitedKeys,
+                                    itemStyle: {
+                                        color: '#e6a23c',
+                                        borderRadius: [0, 0, 0, 0]
+                                    },
+                                    emphasis: { focus: 'series' }
+                                },
+                                {
+                                    name: '无效密钥',
+                                    type: 'bar',
+                                    stack: 'total',
+                                    data: invalidKeys,
+                                    itemStyle: {
+                                        color: '#f56c6c',
+                                        borderRadius: [0, 4, 4, 0]
+                                    },
+                                    emphasis: { focus: 'series' },
+                                    label: {
+                                        show: true,
+                                        position: 'right',
+                                        formatter: (params) => {
+                                            const provider = this.providerStats[params.dataIndex];
+                                            return `总计: ${provider.total_keys}`;
+                                        },
+                                        fontSize: 12,
+                                        fontWeight: 'bold',
+                                        color: '#606266'
+                                    }
                                 }
-                            }
-                        ]
-                    };
-                    chart.setOption(option);
+                            ]
+                        };
+                        chart.setOption(option);
+                    }
+
                     this.providerChart = chart;
                 },
                 renderTrendChart() {

@@ -91,13 +91,22 @@
             <!-- 密钥表格 -->
             <div class="table-container">
                 <!-- 批量操作 -->
-                <div v-if="selectedKeys.length > 0" style="margin-bottom: 20px;">
+                <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div v-if="selectedKeys.length > 0">
+                        <el-space wrap>
+                            <el-text>已选择 {{ selectedKeys.length }} 个密钥</el-text>
+                            <el-button type="primary" @click="showChangeProviderDialog">更改供应商</el-button>
+                            <el-button type="warning" @click="batchRevalidate">重新校验</el-button>
+                            <el-button type="success" @click="batchSync">同步</el-button>
+                            <el-button type="danger" @click="batchDelete">批量删除</el-button>
+                        </el-space>
+                    </div>
+                    <div v-else></div>
+
+                    <!-- 导出功能 -->
                     <el-space wrap>
-                        <el-text>已选择 {{ selectedKeys.length }} 个密钥</el-text>
-                        <el-button type="primary" @click="showChangeProviderDialog">更改供应商</el-button>
-                        <el-button type="warning" @click="batchRevalidate">重新校验</el-button>
-                        <el-button type="success" @click="batchSync">同步</el-button>
-                        <el-button type="danger" @click="batchDelete">批量删除</el-button>
+                        <el-button @click="exportCSV" icon="Download">导出 CSV</el-button>
+                        <el-button @click="exportJSON" icon="Download">导出 JSON</el-button>
                     </el-space>
                 </div>
 
@@ -434,6 +443,62 @@
                         second: '2-digit',
                         hour12: false
                     });
+                },
+                async exportCSV() {
+                    try {
+                        const params = new URLSearchParams();
+                        if (this.filters.provider) params.append('provider', this.filters.provider);
+                        if (this.filters.status) params.append('status', this.filters.status);
+                        if (this.filters.sync_status) params.append('sync_status', this.filters.sync_status);
+                        if (this.filters.search) params.append('search', this.filters.search);
+
+                        const response = await fetch(`/api/keys/export/csv?${params}`);
+                        if (!response.ok) {
+                            ElMessage.error('导出失败');
+                            return;
+                        }
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `keys_${new Date().toISOString().split('T')[0]}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        ElMessage.success('导出成功');
+                    } catch (error) {
+                        ElMessage.error('导出失败');
+                    }
+                },
+                async exportJSON() {
+                    try {
+                        const params = new URLSearchParams();
+                        if (this.filters.provider) params.append('provider', this.filters.provider);
+                        if (this.filters.status) params.append('status', this.filters.status);
+                        if (this.filters.sync_status) params.append('sync_status', this.filters.sync_status);
+                        if (this.filters.search) params.append('search', this.filters.search);
+
+                        const response = await fetch(`/api/keys/export/json?${params}`);
+                        if (!response.ok) {
+                            ElMessage.error('导出失败');
+                            return;
+                        }
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `keys_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        ElMessage.success('导出成功');
+                    } catch (error) {
+                        ElMessage.error('导出失败');
+                    }
                 }
             },
             components: {
