@@ -6,8 +6,8 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from web.database import Base, engine
 
-# 导出 engine 供外部使用
-__all__ = ['Base', 'engine', 'APIKey', 'ScannedFile', 'ScanTask', 'SyncLog', 'SystemConfig', 'DailyStat', 'GitHubToken', 'AIProvider', 'SearchConfig', 'AIAnalysisConfig', 'SyncConfigModel']
+# 导出供外部使用
+__all__ = ['Base', 'engine', 'APIKey', 'ScannedFile', 'ScanTask', 'SyncLog', 'SystemConfig', 'DailyStat']
 
 
 class APIKey(Base):

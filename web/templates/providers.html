@@ -142,7 +142,12 @@
                 <el-button type="primary" icon="Plus" @click="showAddDialog">新增供应商</el-button>
             </div>
 
-            <div class="providers-grid" v-loading="loading">
+            <!-- 空状态提示 -->
+            <el-empty v-if="!loading && providers.length === 0" description="暂无供应商配置，请点击新增供应商按钮添加">
+                <el-button type="primary" @click="showAddDialog">新增第一个供应商</el-button>
+            </el-empty>
+
+            <div v-if="providers.length > 0" class="providers-grid" v-loading="loading">
                 <div v-for="(provider, index) in providers" :key="index" class="provider-card">
                     <div class="provider-header">
                         <div class="provider-name">{{ provider.name || '未命名供应商' }}</div>
@@ -347,15 +352,23 @@
                             }
                         });
                         if (response.ok) {
-                            this.providers = await response.json();
+                            const data = await response.json();
+                            this.providers = Array.isArray(data) ? data : [];
                             // 确保每个供应商都有 custom_keywords 数组
                             this.providers = this.providers.map(p => ({
                                 ...p,
                                 custom_keywords: p.custom_keywords || []
                             }));
+                        } else if (response.status === 401) {
+                            ElMessage.error('认证失败，请重新登录');
+                            localStorage.removeItem('access_token');
+                            window.location.href = '/login';
+                        } else {
+                            ElMessage.error('加载供应商列表失败');
                         }
                     } catch (error) {
-                        ElMessage.error('加载供应商列表失败');
+                        console.error('加载供应商失败:', error);
+                        ElMessage.error('加载供应商列表失败: ' + error.message);
                     } finally {
                         this.loading = false;
                     }
