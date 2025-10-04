@@ -420,8 +420,15 @@
                         <el-form-item label="供应商名称" required>
                             <el-input v-model="currentProvider.name" placeholder="例如: gemini" />
                         </el-form-item>
+                    </div>
 
-                        <el-form-item label="供应商类型" required>
+                    <!-- API 配置 -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <div class="form-section-icon">🔌</div>
+                            <span>API 配置</span>
+                        </div>
+                        <el-form-item label="API类型" required>
                             <el-select v-model="currentProvider.type" style="width: 100%;">
                                 <el-option label="Google Gemini" value="gemini">
                                     <span>🔮 Google Gemini</span>
@@ -432,23 +439,16 @@
                             </el-select>
                         </el-form-item>
 
-                        <el-form-item label="验证模型" required>
-                            <el-input v-model="currentProvider.check_model" placeholder="例如: gemini-2.0-flash-exp" />
-                        </el-form-item>
-                    </div>
-
-                    <!-- API 配置 -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <div class="form-section-icon">🔌</div>
-                            <span>API 配置</span>
-                        </div>
                         <el-form-item label="API Endpoint" v-if="currentProvider.type === 'gemini'">
                             <el-input v-model="currentProvider.api_endpoint" placeholder="generativelanguage.googleapis.com" />
                         </el-form-item>
 
                         <el-form-item label="API Base URL" v-if="currentProvider.type === 'openai_style'">
                             <el-input v-model="currentProvider.api_base_url" placeholder="https://api.openai.com/v1" />
+                        </el-form-item>
+
+                        <el-form-item label="验证模型" required>
+                            <el-input v-model="currentProvider.check_model" placeholder="例如: gemini-2.0-flash-exp" />
                         </el-form-item>
 
                         <el-form-item label="密钥正则表达式" required>

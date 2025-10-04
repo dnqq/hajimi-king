@@ -28,110 +28,111 @@ async def get_stats_summary(db: Session = Depends(get_db)):
 
     # 使用上海时间计算
     now = now_shanghai().replace(tzinfo=None)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # 时间范围定义
-    yesterday_start = now - timedelta(days=2)
-    yesterday_end = now - timedelta(days=1)
+    # 时间范围定义（改为统计新增数量）
+    yesterday_start = today_start - timedelta(days=1)
+    yesterday_end = today_start
 
-    week_ago_start = now - timedelta(days=14)
-    week_ago_end = now - timedelta(days=7)
+    week_ago_start = today_start - timedelta(days=7)
+    week_ago_end = today_start
 
-    month_ago_start = now - timedelta(days=60)
-    month_ago_end = now - timedelta(days=30)
+    month_ago_start = today_start - timedelta(days=30)
+    month_ago_end = today_start
 
-    # 查询历史数据
-    # 昨日总数
+    # 查询历史新增数据（昨日新增）
     yesterday_total = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= yesterday_start,
         APIKey.discovered_at < yesterday_end
     ).scalar() or 0
 
-    # 上周总数
+    # 上周新增
     week_ago_total = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= week_ago_start,
         APIKey.discovered_at < week_ago_end
     ).scalar() or 0
 
-    # 上月总数
+    # 上月新增
     month_ago_total = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= month_ago_start,
         APIKey.discovered_at < month_ago_end
     ).scalar() or 0
 
-    # 昨日有效密钥数
+    # 昨日新增有效密钥数
     yesterday_valid = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= yesterday_start,
         APIKey.discovered_at < yesterday_end,
         APIKey.status == 'valid'
     ).scalar() or 0
 
-    # 上周有效密钥数
+    # 上周新增有效密钥数
     week_ago_valid = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= week_ago_start,
         APIKey.discovered_at < week_ago_end,
         APIKey.status == 'valid'
     ).scalar() or 0
 
-    # 上月有效密钥数
+    # 上月新增有效密钥数
     month_ago_valid = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= month_ago_start,
         APIKey.discovered_at < month_ago_end,
         APIKey.status == 'valid'
     ).scalar() or 0
 
-    # 昨日限流密钥数
+    # 昨日新增限流密钥数
     yesterday_rate_limited = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= yesterday_start,
         APIKey.discovered_at < yesterday_end,
         APIKey.status == 'rate_limited'
     ).scalar() or 0
 
-    # 上周限流密钥数
+    # 上周新增限流密钥数
     week_ago_rate_limited = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= week_ago_start,
         APIKey.discovered_at < week_ago_end,
         APIKey.status == 'rate_limited'
     ).scalar() or 0
 
-    # 上月限流密钥数
+    # 上月新增限流密钥数
     month_ago_rate_limited = db.query(func.count(APIKey.id)).filter(
+        APIKey.discovered_at >= month_ago_start,
         APIKey.discovered_at < month_ago_end,
         APIKey.status == 'rate_limited'
     ).scalar() or 0
 
-    # 当前数据
-    current_total = stats.get('total_keys', 0)
-    current_valid = stats.get('valid_keys', 0)
-    current_rate_limited = stats.get('rate_limited_keys', 0)
+    # 今日新增数据（直接使用 stats 中的数据）
+    today_total = stats.get('today_keys', 0)
+    today_valid = stats.get('today_valid_keys', 0)
+    today_rate_limited = stats.get('today_rate_limited_keys', 0)
 
-    # 添加趋势数据
+    # 添加趋势数据（直接显示新增数量，而不是与总数对比）
     stats['trends'] = {
-        # 总密钥数趋势
-        'total_keys_day': _calculate_change_rate(current_total, yesterday_total),
-        'total_keys_week': _calculate_change_rate(current_total, week_ago_total),
-        'total_keys_month': _calculate_change_rate(current_total, month_ago_total),
+        # 总密钥数趋势（显示新增数量）
+        'total_keys_day': _format_trend_value(yesterday_total),
+        'total_keys_week': _format_trend_value(week_ago_total),
+        'total_keys_month': _format_trend_value(month_ago_total),
 
-        # 有效密钥趋势
-        'valid_keys_day': _calculate_change_rate(current_valid, yesterday_valid),
-        'valid_keys_week': _calculate_change_rate(current_valid, week_ago_valid),
-        'valid_keys_month': _calculate_change_rate(current_valid, month_ago_valid),
+        # 有效密钥趋势（显示新增数量）
+        'valid_keys_day': _format_trend_value(yesterday_valid),
+        'valid_keys_week': _format_trend_value(week_ago_valid),
+        'valid_keys_month': _format_trend_value(month_ago_valid),
 
-        # 限流密钥趋势
-        'rate_limited_keys_day': _calculate_change_rate(current_rate_limited, yesterday_rate_limited),
-        'rate_limited_keys_week': _calculate_change_rate(current_rate_limited, week_ago_rate_limited),
-        'rate_limited_keys_month': _calculate_change_rate(current_rate_limited, month_ago_rate_limited),
+        # 限流密钥趋势（显示新增数量）
+        'rate_limited_keys_day': _format_trend_value(yesterday_rate_limited),
+        'rate_limited_keys_week': _format_trend_value(week_ago_rate_limited),
+        'rate_limited_keys_month': _format_trend_value(month_ago_rate_limited),
     }
 
     return stats
 
 
-def _calculate_change_rate(current: int, previous: int) -> dict:
-    """计算变化率和趋势"""
-    if previous == 0:
-        if current > 0:
-            return {'rate': 100.0, 'direction': 'up', 'value': current - previous}
-        return {'rate': 0.0, 'direction': 'neutral', 'value': 0}
-
-    change = current - previous
-    rate = (change / previous) * 100
-    direction = 'up' if change > 0 else ('down' if change < 0 else 'neutral')
-
+def _format_trend_value(value: int) -> dict:
+    """格式化趋势值（直接显示新增数量）"""
+    direction = 'up' if value > 0 else ('down' if value < 0 else 'neutral')
     return {
-        'rate': round(abs(rate), 1),
+        'rate': 0,  # 不再计算百分比
         'direction': direction,
-        'value': change
+        'value': value
     }
 
 
