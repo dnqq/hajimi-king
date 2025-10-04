@@ -14,25 +14,30 @@ from web.models import SystemConfig
 from common.Logger import logger
 
 
-# 临时定义新表（避免循环导入）
-class AIProvider(Base):
-    """AI 供应商配置表"""
-    __tablename__ = "ai_providers"
+# 直接从 models 导入（避免重复定义）
+try:
+    from web.models import AIProvider
+except ImportError:
+    # 如果导入失败，临时定义（兼容旧版本）
+    class AIProvider(Base):
+        """AI 供应商配置表"""
+        __tablename__ = "ai_providers"
+        __table_args__ = {'extend_existing': True}
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), unique=True, nullable=False, index=True)
-    type = Column(String(50), nullable=False)
-    check_model = Column(String(100), nullable=False)
-    api_endpoint = Column(String(255))
-    api_base_url = Column(String(255))
-    key_patterns = Column(JSON, nullable=False)
-    gpt_load_group_name = Column(String(100))
-    skip_ai_analysis = Column(Boolean, default=False)
-    enabled = Column(Boolean, default=True, index=True)
-    custom_keywords = Column(JSON, default=[])
-    sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+        id = Column(Integer, primary_key=True, autoincrement=True)
+        name = Column(String(50), unique=True, nullable=False, index=True)
+        type = Column(String(50), nullable=False)
+        check_model = Column(String(100), nullable=False)
+        api_endpoint = Column(String(255))
+        api_base_url = Column(String(255))
+        key_patterns = Column(JSON, nullable=False)
+        gpt_load_group_name = Column(String(100))
+        skip_ai_analysis = Column(Boolean, default=False)
+        enabled = Column(Boolean, default=True, index=True)
+        custom_keywords = Column(JSON, default=[])
+        sort_order = Column(Integer, default=0)
+        created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+        updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
 def migrate():
