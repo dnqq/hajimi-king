@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI供应商管理 - 哈基米</title>
+    <title>AI供应商管理 - 野王</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link rel="stylesheet" href="/static/css/table.css">
     <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
@@ -32,80 +32,25 @@
             margin: 0 auto;
         }
 
-        /* 页面头部 */
+        /* 页面头部 - 简化版 */
         .page-header {
             margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
-        .page-title-group {
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
             gap: 12px;
         }
 
-        .page-icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            backdrop-filter: blur(10px);
-        }
-
-        .page-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #fff;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .page-subtitle {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.8);
-            margin-top: 4px;
-        }
-
-        /* 统计卡片 */
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .stat-card-mini {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-        }
-
-        .stat-card-mini:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-        }
-
-        .stat-card-mini .label {
-            font-size: 13px;
-            color: #909399;
-            margin-bottom: 8px;
-        }
-
-        .stat-card-mini .value {
-            font-size: 32px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .page-title img {
+            width: 40px;
+            height: 40px;
+            filter: brightness(0) invert(1);
         }
 
         /* 主内容区 */
@@ -124,16 +69,18 @@
             justify-content: space-between;
             align-items: center;
             background: #fafbfc;
+            gap: 16px;
         }
 
         .toolbar-left {
             display: flex;
             gap: 12px;
             align-items: center;
+            flex: 1;
         }
 
         .search-box {
-            width: 280px;
+            width: 320px;
         }
 
         /* 表格样式增强 */
@@ -193,103 +140,105 @@
             color: #1565c0;
         }
 
-        /* 关键字对话框 */
-        .keywords-dialog {
-            padding: 8px;
+        /* 关键字管理对话框 - 左右分栏 */
+        .keywords-management {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            min-height: 500px;
         }
 
-        .keywords-section {
-            margin-bottom: 20px;
+        .keywords-panel {
+            display: flex;
+            flex-direction: column;
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            overflow: hidden;
         }
 
-        .keywords-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .keywords-header {
+        .keywords-panel-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 15px;
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #f0f0f0;
         }
 
-        .keywords-header-icon {
-            font-size: 18px;
+        .keywords-panel-header.preset {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
         }
 
-        .keywords-header-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #303133;
+        .keywords-panel-header.custom {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
         }
 
-        .keywords-header-badge {
-            margin-left: auto;
-            padding: 2px 8px;
-            background: #f0f2f5;
-            border-radius: 10px;
-            font-size: 11px;
-            color: #606266;
-        }
-
-        .keywords-content {
+        .keywords-panel-body {
+            flex: 1;
+            padding: 20px;
             background: #fafbfc;
-            border-radius: 8px;
-            padding: 16px;
-            min-height: 80px;
-            max-height: 300px;
             overflow-y: auto;
         }
 
-        .keywords-content::-webkit-scrollbar {
+        .keywords-panel-body::-webkit-scrollbar {
             width: 6px;
         }
 
-        .keywords-content::-webkit-scrollbar-thumb {
+        .keywords-panel-body::-webkit-scrollbar-thumb {
             background: #d0d0d0;
             border-radius: 3px;
         }
 
-        .keyword-tag {
-            display: inline-block;
-            padding: 6px 12px;
-            margin: 4px;
-            border-radius: 6px;
-            font-size: 12px;
+        .keyword-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
             font-family: 'Courier New', Monaco, monospace;
+            font-size: 13px;
+            color: #303133;
             transition: all 0.2s;
+            word-break: break-all;
         }
 
-        .keyword-tag:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        .keyword-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
         }
 
-        .keyword-tag.preset {
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            color: #1565c0;
-            border: 1px solid #90caf9;
+        .keyword-item.preset {
+            border-left: 3px solid #2196F3;
         }
 
-        .keyword-tag.custom {
-            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-            color: #ef6c00;
-            border: 1px solid #ffb74d;
+        .keyword-item.custom {
+            border-left: 3px solid #FF9800;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .keyword-item.custom .keyword-text {
+            flex: 1;
         }
 
         .keywords-empty {
             text-align: center;
-            padding: 32px;
+            padding: 60px 20px;
             color: #909399;
-            font-size: 13px;
         }
 
         .keywords-empty-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
+            font-size: 64px;
+            margin-bottom: 16px;
             opacity: 0.3;
+        }
+
+        .custom-keyword-input {
+            margin-top: 16px;
         }
 
         /* 编辑表单优化 */
@@ -338,8 +287,13 @@
 
         .elegant-empty-icon {
             font-size: 80px;
-            color: #c0c4cc;
             margin-bottom: 24px;
+        }
+
+        .elegant-empty-icon img {
+            width: 120px;
+            height: 120px;
+            opacity: 0.3;
         }
 
         .elegant-empty-title {
@@ -361,44 +315,19 @@
         <nav-bar active-page="providers"></nav-bar>
 
         <div class="main-container">
-            <!-- 页面头部 -->
+            <!-- 页面头部 - 简化版 -->
             <div class="page-header">
-                <div class="page-title-group">
-                    <div class="page-icon">🤖</div>
-                    <div>
-                        <div class="page-title">AI 供应商管理</div>
-                        <div class="page-subtitle">配置和管理 AI 密钥供应商</div>
-                    </div>
-                </div>
-                <el-button type="primary" size="large" @click="showAddDialog" style="border-radius: 8px;">
-                    <el-icon><Plus /></el-icon>
-                    <span style="margin-left: 8px;">新增供应商</span>
-                </el-button>
-            </div>
-
-            <!-- 统计卡片 -->
-            <div class="stats-row">
-                <div class="stat-card-mini">
-                    <div class="label">供应商总数</div>
-                    <div class="value">{{ providers.length }}</div>
-                </div>
-                <div class="stat-card-mini">
-                    <div class="label">Gemini 类型</div>
-                    <div class="value">{{ providers.filter(p => p.type === 'gemini').length }}</div>
-                </div>
-                <div class="stat-card-mini">
-                    <div class="label">OpenAI 类型</div>
-                    <div class="value">{{ providers.filter(p => p.type === 'openai_style').length }}</div>
-                </div>
-                <div class="stat-card-mini">
-                    <div class="label">自定义关键字</div>
-                    <div class="value">{{ getTotalCustomKeywords() }}</div>
+                <div class="page-title">
+                    <img src="/static/images/wolf-logo.svg" alt="野王" />
+                    AI 供应商管理
                 </div>
             </div>
 
             <!-- 空状态 -->
             <div v-if="!loading && providers.length === 0" class="elegant-empty">
-                <div class="elegant-empty-icon">🤖</div>
+                <div class="elegant-empty-icon">
+                    <img src="/static/images/wolf-logo.svg" alt="野王" />
+                </div>
                 <div class="elegant-empty-title">还没有配置供应商</div>
                 <div class="elegant-empty-desc">点击上方按钮开始添加你的第一个 AI 供应商配置</div>
                 <el-button type="primary" size="large" @click="showAddDialog" style="border-radius: 8px;">
@@ -421,10 +350,12 @@
                                 <el-icon><Search /></el-icon>
                             </template>
                         </el-input>
-                    </div>
-                    <div>
                         <el-text type="info" size="small">共 {{ filteredProviders.length }} 个供应商</el-text>
                     </div>
+                    <el-button type="primary" @click="showAddDialog" style="border-radius: 8px;">
+                        <el-icon><Plus /></el-icon>
+                        <span style="margin-left: 8px;">新增供应商</span>
+                    </el-button>
                 </div>
 
                 <el-table :data="filteredProviders" v-loading="loading" style="width: 100%">
@@ -470,19 +401,12 @@
                         </template>
                     </el-table-column>
 
-                    <el-table-column label="关键字" width="100" align="center">
-                        <template #default="{ row }">
-                            <el-badge :value="(row.custom_keywords || []).length" :hidden="!row.custom_keywords || row.custom_keywords.length === 0">
-                                <el-button size="small" text @click="viewKeywords(row)">
-                                    <el-icon><View /></el-icon>
-                                </el-button>
-                            </el-badge>
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column label="操作" width="280" fixed="right">
+                    <el-table-column label="操作" width="320" fixed="right">
                         <template #default="{ row, $index }">
                             <div class="table-actions">
+                                <el-button size="small" @click="showKeywordsDialog(row)">
+                                    <el-icon><Key /></el-icon> 关键字
+                                </el-button>
                                 <el-button size="small" @click="showEditDialog(row, $index)">
                                     <el-icon><Edit /></el-icon> 编辑
                                 </el-button>
@@ -498,73 +422,86 @@
                 </el-table>
             </div>
 
-            <!-- 关键字查看对话框 -->
+            <!-- 关键字管理对话框 - 左右分栏 -->
             <el-dialog
                 v-model="keywordsDialogVisible"
-                title="搜索关键字配置"
-                width="800px"
+                title="搜索关键字管理"
+                width="1000px"
                 :close-on-click-modal="false"
             >
-                <div class="keywords-dialog" v-if="selectedProvider">
-                    <!-- 预设关键字 -->
-                    <div class="keywords-section">
-                        <div class="keywords-header">
-                            <span class="keywords-header-icon">🔍</span>
-                            <span class="keywords-header-title">预设关键字</span>
-                            <span class="keywords-header-badge">自动生成 · 只读</span>
+                <div class="keywords-management" v-if="selectedProvider">
+                    <!-- 左侧：预设关键字（只读） -->
+                    <div class="keywords-panel">
+                        <div class="keywords-panel-header preset">
+                            <el-icon><Lock /></el-icon>
+                            <span>系统预设关键字（只读）</span>
                         </div>
-                        <div class="keywords-content">
+                        <div class="keywords-panel-body">
                             <div v-if="presetKeywords.length > 0">
-                                <span v-for="(keyword, index) in presetKeywords" :key="index" class="keyword-tag preset">
+                                <div v-for="(keyword, index) in presetKeywords" :key="index" class="keyword-item preset">
                                     {{ keyword }}
-                                </span>
+                                </div>
                             </div>
                             <div v-else class="keywords-empty">
-                                <div class="keywords-empty-icon">📭</div>
+                                <div class="keywords-empty-icon">🔍</div>
                                 <div>暂无预设关键字</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 自定义关键字 -->
-                    <div class="keywords-section">
-                        <div class="keywords-header">
-                            <span class="keywords-header-icon">✏️</span>
-                            <span class="keywords-header-title">自定义关键字</span>
-                            <span class="keywords-header-badge">用户配置 · 可编辑</span>
+                    <!-- 右侧：自定义关键字（可编辑） -->
+                    <div class="keywords-panel">
+                        <div class="keywords-panel-header custom">
+                            <el-icon><Edit /></el-icon>
+                            <span>自定义关键字（可编辑）</span>
                         </div>
-                        <div class="keywords-content">
-                            <div v-if="selectedProvider.custom_keywords && selectedProvider.custom_keywords.length > 0">
-                                <span v-for="(keyword, index) in selectedProvider.custom_keywords" :key="index" class="keyword-tag custom">
-                                    {{ keyword }}
-                                </span>
+                        <div class="keywords-panel-body">
+                            <div v-if="editingCustomKeywords.length > 0">
+                                <div v-for="(keyword, index) in editingCustomKeywords" :key="index" class="keyword-item custom">
+                                    <span class="keyword-text">{{ keyword }}</span>
+                                    <el-button size="small" type="danger" text @click="removeCustomKeyword(index)">
+                                        <el-icon><Close /></el-icon>
+                                    </el-button>
+                                </div>
                             </div>
                             <div v-else class="keywords-empty">
-                                <div class="keywords-empty-icon">📝</div>
+                                <div class="keywords-empty-icon">✏️</div>
                                 <div>暂无自定义关键字</div>
-                                <div style="margin-top: 8px; font-size: 12px;">点击"编辑"按钮添加自定义关键字</div>
+                                <div style="margin-top: 8px; font-size: 12px;">在下方添加关键字</div>
+                            </div>
+
+                            <!-- 添加新关键字 -->
+                            <div class="custom-keyword-input">
+                                <el-input
+                                    v-model="newKeyword"
+                                    placeholder="输入新关键字后按回车添加"
+                                    @keyup.enter="addCustomKeyword"
+                                >
+                                    <template #append>
+                                        <el-button @click="addCustomKeyword">
+                                            <el-icon><Plus /></el-icon>
+                                        </el-button>
+                                    </template>
+                                </el-input>
                             </div>
                         </div>
                     </div>
-
-                    <el-alert type="info" :closable="false" style="margin-top: 16px;">
-                        <template #title>
-                            <div style="font-size: 13px; line-height: 1.6;">
-                                <strong>关键字说明：</strong><br>
-                                • 预设关键字根据供应商类型和密钥模式自动生成，用于基础搜索<br>
-                                • 自定义关键字由用户手动添加，在预设关键字之后搜索<br>
-                                • 两种关键字配合使用，可以最大化密钥发现率
-                            </div>
-                        </template>
-                    </el-alert>
                 </div>
+
+                <template #footer>
+                    <el-button @click="keywordsDialogVisible = false" size="large">取消</el-button>
+                    <el-button type="primary" @click="saveCustomKeywords" size="large" style="border-radius: 8px;">
+                        <el-icon><Check /></el-icon>
+                        <span style="margin-left: 8px;">保存自定义关键字</span>
+                    </el-button>
+                </template>
             </el-dialog>
 
-            <!-- 新增/编辑供应商对话框 -->
+            <!-- 新增/编辑供应商对话框（不含关键字） -->
             <el-dialog
                 v-model="dialogVisible"
                 :title="dialogMode === 'add' ? '新增供应商' : '编辑供应商'"
-                width="750px"
+                width="700px"
                 :close-on-click-modal="false"
                 @close="resetDialog"
             >
@@ -646,25 +583,6 @@
                             </span>
                         </el-form-item>
                     </div>
-
-                    <!-- 搜索关键字 -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <div class="form-section-icon">🔍</div>
-                            <span>自定义搜索关键字</span>
-                        </div>
-                        <el-form-item label="关键字列表">
-                            <el-input
-                                v-model="customKeywordsText"
-                                type="textarea"
-                                :rows="6"
-                                placeholder="每行一个关键字&#10;&#10;例如:&#10;GEMINI_API_KEY&#10;GOOGLE_AI_KEY&#10;MY_CUSTOM_KEYWORD"
-                            />
-                            <div style="margin-top: 6px; font-size: 12px; color: #909399;">
-                                💡 每行输入一个自定义关键字，搜索时会在预设关键字之后使用
-                            </div>
-                        </el-form-item>
-                    </div>
                 </el-form>
 
                 <template #footer>
@@ -694,8 +612,10 @@
                     currentIndex: -1,
                     currentProvider: this.getEmptyProvider(),
                     selectedProvider: null,
+                    selectedProviderIndex: -1,
                     presetKeywords: [],
-                    customKeywordsText: ''
+                    editingCustomKeywords: [],
+                    newKeyword: ''
                 };
             },
             computed: {
@@ -732,11 +652,6 @@
                         skip_ai_analysis: false,
                         custom_keywords: []
                     };
-                },
-                getTotalCustomKeywords() {
-                    return this.providers.reduce((total, p) => {
-                        return total + (p.custom_keywords ? p.custom_keywords.length : 0);
-                    }, 0);
                 },
                 async loadProviders() {
                     this.loading = true;
@@ -778,7 +693,6 @@
                 showAddDialog() {
                     this.dialogMode = 'add';
                     this.currentProvider = this.getEmptyProvider();
-                    this.customKeywordsText = '';
                     this.dialogVisible = true;
                 },
                 showEditDialog(provider, index) {
@@ -790,14 +704,40 @@
                         this.currentProvider.custom_keywords = [];
                     }
 
-                    this.customKeywordsText = this.currentProvider.custom_keywords.join('\n');
                     this.dialogVisible = true;
+                },
+                showKeywordsDialog(provider) {
+                    const index = this.providers.findIndex(p => p.name === provider.name);
+                    this.selectedProvider = provider;
+                    this.selectedProviderIndex = index;
+                    this.presetKeywords = this.generatePresetKeywords(provider);
+                    this.editingCustomKeywords = [...(provider.custom_keywords || [])];
+                    this.newKeyword = '';
+                    this.keywordsDialogVisible = true;
+                },
+                addCustomKeyword() {
+                    const keyword = this.newKeyword.trim();
+                    if (keyword && !this.editingCustomKeywords.includes(keyword)) {
+                        this.editingCustomKeywords.push(keyword);
+                        this.newKeyword = '';
+                        ElMessage.success('已添加关键字');
+                    } else if (this.editingCustomKeywords.includes(keyword)) {
+                        ElMessage.warning('关键字已存在');
+                    }
+                },
+                removeCustomKeyword(index) {
+                    this.editingCustomKeywords.splice(index, 1);
+                    ElMessage.success('已删除关键字');
+                },
+                async saveCustomKeywords() {
+                    this.providers[this.selectedProviderIndex].custom_keywords = [...this.editingCustomKeywords];
+                    await this.updateProviders();
+                    this.keywordsDialogVisible = false;
                 },
                 copyProvider(provider) {
                     this.dialogMode = 'add';
                     this.currentProvider = JSON.parse(JSON.stringify(provider));
                     this.currentProvider.name = provider.name + '_copy';
-                    this.customKeywordsText = (this.currentProvider.custom_keywords || []).join('\n');
                     this.dialogVisible = true;
                     ElMessage.success('已复制供应商配置，请修改名称后保存');
                 },
@@ -814,11 +754,6 @@
                         ElMessage.error('请输入密钥正则表达式');
                         return;
                     }
-
-                    this.currentProvider.custom_keywords = this.customKeywordsText
-                        .split('\n')
-                        .map(line => line.trim())
-                        .filter(line => line.length > 0);
 
                     if (this.dialogMode === 'add') {
                         this.providers.push(this.currentProvider);
@@ -874,12 +809,6 @@
                 resetDialog() {
                     this.currentProvider = this.getEmptyProvider();
                     this.currentIndex = -1;
-                    this.customKeywordsText = '';
-                },
-                viewKeywords(provider) {
-                    this.selectedProvider = provider;
-                    this.presetKeywords = this.generatePresetKeywords(provider);
-                    this.keywordsDialogVisible = true;
                 },
                 generatePresetKeywords(provider) {
                     const keywords = [];

@@ -12,8 +12,8 @@ const NavBar = {
             <div class="navbar-content">
                 <div class="navbar-left">
                     <div class="logo">
-                        <span class="logo-icon">👑</span>
-                        <span class="logo-text">哈基米</span>
+                        <img src="/static/images/wolf-logo.svg" class="logo-icon" alt="野王" />
+                        <span class="logo-text">野王</span>
                     </div>
                     <div class="nav">
                         <a href="/" :class="{ active: activePage === 'dashboard' }">📊 仪表盘</a>
@@ -77,9 +77,9 @@ const navbarStyles = `
 }
 
 .logo-icon {
-    font-size: 32px;
-    line-height: 1;
-    filter: none !important;
+    width: 32px;
+    height: 32px;
+    display: block;
 }
 
 .logo-text {
