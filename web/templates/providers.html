@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI供应商管理 - 哈基米</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/table.css">
     <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
     <script src="/static/js/vue.global.prod.js"></script>
     <script src="/static/js/element-plus.js"></script>
@@ -17,64 +18,341 @@
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f0f2f5;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
+
         #app {
             min-height: 100vh;
         }
+
         .main-container {
             padding: 24px;
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
+
+        /* 页面头部 */
         .page-header {
-            background: #fff;
-            padding: 20px 24px;
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
             margin-bottom: 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .page-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #303133;
+
+        .page-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .table-container {
+
+        .page-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 4px;
+        }
+
+        /* 统计卡片 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card-mini {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card-mini:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-card-mini .label {
+            font-size: 13px;
+            color: #909399;
+            margin-bottom: 8px;
+        }
+
+        .stat-card-mini .value {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 主内容区 */
+        .content-card {
             background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             overflow: hidden;
         }
-        .keyword-tag {
-            display: inline-block;
-            padding: 2px 8px;
-            margin: 2px;
-            background: #ecf5ff;
-            color: #409eff;
-            border-radius: 3px;
+
+        /* 工具栏 */
+        .toolbar {
+            padding: 20px 24px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafbfc;
+        }
+
+        .toolbar-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search-box {
+            width: 280px;
+        }
+
+        /* 表格样式增强 */
+        .provider-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .provider-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .provider-info {
+            flex: 1;
+        }
+
+        .provider-name-text {
+            font-weight: 600;
+            color: #303133;
+            font-size: 14px;
+        }
+
+        .provider-meta {
             font-size: 12px;
-            font-family: 'Courier New', monospace;
+            color: #909399;
+            margin-top: 2px;
         }
-        .custom-tag {
-            background: #fff0e6;
-            color: #e6a23c;
+
+        /* 类型标签 */
+        .type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
         }
-        .keywords-box {
-            margin: 12px 0;
-            padding: 12px;
-            background: #f5f7fa;
-            border-radius: 4px;
-            max-height: 200px;
+
+        .type-badge.gemini {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            color: #2e7d32;
+        }
+
+        .type-badge.openai {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            color: #1565c0;
+        }
+
+        /* 关键字对话框 */
+        .keywords-dialog {
+            padding: 8px;
+        }
+
+        .keywords-section {
+            margin-bottom: 20px;
+        }
+
+        .keywords-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .keywords-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .keywords-header-icon {
+            font-size: 18px;
+        }
+
+        .keywords-header-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #303133;
+        }
+
+        .keywords-header-badge {
+            margin-left: auto;
+            padding: 2px 8px;
+            background: #f0f2f5;
+            border-radius: 10px;
+            font-size: 11px;
+            color: #606266;
+        }
+
+        .keywords-content {
+            background: #fafbfc;
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 80px;
+            max-height: 300px;
             overflow-y: auto;
         }
-        .keywords-section-title {
+
+        .keywords-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .keywords-content::-webkit-scrollbar-thumb {
+            background: #d0d0d0;
+            border-radius: 3px;
+        }
+
+        .keyword-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 4px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'Courier New', Monaco, monospace;
+            transition: all 0.2s;
+        }
+
+        .keyword-tag:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .keyword-tag.preset {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            color: #1565c0;
+            border: 1px solid #90caf9;
+        }
+
+        .keyword-tag.custom {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            color: #ef6c00;
+            border: 1px solid #ffb74d;
+        }
+
+        .keywords-empty {
+            text-align: center;
+            padding: 32px;
+            color: #909399;
             font-size: 13px;
-            color: #606266;
+        }
+
+        .keywords-empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        /* 编辑表单优化 */
+        .form-section {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px dashed #e0e0e0;
+        }
+
+        .form-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .form-section-title {
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 8px;
+            color: #303133;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-section-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        /* 空状态优化 */
+        .elegant-empty {
+            text-align: center;
+            padding: 100px 40px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .elegant-empty-icon {
+            font-size: 80px;
+            color: #c0c4cc;
+            margin-bottom: 24px;
+        }
+
+        .elegant-empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #303133;
+            margin-bottom: 12px;
+        }
+
+        .elegant-empty-desc {
+            font-size: 14px;
+            color: #909399;
+            margin-bottom: 32px;
         }
     </style>
 </head>
@@ -83,59 +361,138 @@
         <nav-bar active-page="providers"></nav-bar>
 
         <div class="main-container">
+            <!-- 页面头部 -->
             <div class="page-header">
-                <div class="page-title">AI 供应商管理</div>
-                <el-button type="primary" icon="Plus" @click="showAddDialog">新增供应商</el-button>
+                <div class="page-title-group">
+                    <div class="page-icon">🤖</div>
+                    <div>
+                        <div class="page-title">AI 供应商管理</div>
+                        <div class="page-subtitle">配置和管理 AI 密钥供应商</div>
+                    </div>
+                </div>
+                <el-button type="primary" size="large" @click="showAddDialog" style="border-radius: 8px;">
+                    <el-icon><Plus /></el-icon>
+                    <span style="margin-left: 8px;">新增供应商</span>
+                </el-button>
             </div>
 
-            <!-- 空状态提示 -->
-            <el-empty v-if="!loading && providers.length === 0" description="暂无供应商配置，请点击新增供应商按钮添加">
-                <el-button type="primary" @click="showAddDialog">新增第一个供应商</el-button>
-            </el-empty>
+            <!-- 统计卡片 -->
+            <div class="stats-row">
+                <div class="stat-card-mini">
+                    <div class="label">供应商总数</div>
+                    <div class="value">{{ providers.length }}</div>
+                </div>
+                <div class="stat-card-mini">
+                    <div class="label">Gemini 类型</div>
+                    <div class="value">{{ providers.filter(p => p.type === 'gemini').length }}</div>
+                </div>
+                <div class="stat-card-mini">
+                    <div class="label">OpenAI 类型</div>
+                    <div class="value">{{ providers.filter(p => p.type === 'openai_style').length }}</div>
+                </div>
+                <div class="stat-card-mini">
+                    <div class="label">自定义关键字</div>
+                    <div class="value">{{ getTotalCustomKeywords() }}</div>
+                </div>
+            </div>
 
-            <!-- 供应商列表表格 -->
-            <div v-if="providers.length > 0" class="table-container">
-                <el-table :data="providers" v-loading="loading" stripe>
-                    <el-table-column prop="name" label="供应商名称" width="150">
+            <!-- 空状态 -->
+            <div v-if="!loading && providers.length === 0" class="elegant-empty">
+                <div class="elegant-empty-icon">🤖</div>
+                <div class="elegant-empty-title">还没有配置供应商</div>
+                <div class="elegant-empty-desc">点击上方按钮开始添加你的第一个 AI 供应商配置</div>
+                <el-button type="primary" size="large" @click="showAddDialog" style="border-radius: 8px;">
+                    <el-icon><Plus /></el-icon>
+                    <span style="margin-left: 8px;">新增第一个供应商</span>
+                </el-button>
+            </div>
+
+            <!-- 供应商列表 -->
+            <div v-if="providers.length > 0" class="content-card">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <el-input
+                            v-model="searchText"
+                            placeholder="搜索供应商名称..."
+                            class="search-box"
+                            clearable
+                        >
+                            <template #prefix>
+                                <el-icon><Search /></el-icon>
+                            </template>
+                        </el-input>
+                    </div>
+                    <div>
+                        <el-text type="info" size="small">共 {{ filteredProviders.length }} 个供应商</el-text>
+                    </div>
+                </div>
+
+                <el-table :data="filteredProviders" v-loading="loading" style="width: 100%">
+                    <el-table-column label="供应商" width="280">
                         <template #default="{ row }">
-                            <strong>{{ row.name }}</strong>
+                            <div class="provider-name-cell">
+                                <div class="provider-avatar">{{ row.name.substring(0, 2).toUpperCase() }}</div>
+                                <div class="provider-info">
+                                    <div class="provider-name-text">{{ row.name }}</div>
+                                    <div class="provider-meta">{{ row.check_model }}</div>
+                                </div>
+                            </div>
                         </template>
                     </el-table-column>
 
-                    <el-table-column prop="type" label="类型" width="150">
+                    <el-table-column label="类型" width="160">
                         <template #default="{ row }">
-                            <el-tag :type="row.type === 'gemini' ? 'success' : 'primary'" size="small">
+                            <div :class="['type-badge', row.type === 'gemini' ? 'gemini' : 'openai']">
+                                <span v-if="row.type === 'gemini'">🔮</span>
+                                <span v-else>🤖</span>
                                 {{ getProviderTypeLabel(row.type) }}
-                            </el-tag>
+                            </div>
                         </template>
                     </el-table-column>
 
-                    <el-table-column prop="check_model" label="验证模型" width="200"></el-table-column>
-
-                    <el-table-column label="API 配置" width="250">
+                    <el-table-column label="API 配置" min-width="200">
                         <template #default="{ row }">
-                            <div v-if="row.type === 'gemini'" style="font-size: 12px; color: #606266;">
+                            <el-text size="small" type="info" v-if="row.type === 'gemini'">
                                 {{ row.api_endpoint || '-' }}
-                            </div>
-                            <div v-if="row.type === 'openai_style'" style="font-size: 12px; color: #606266;">
+                            </el-text>
+                            <el-text size="small" type="info" v-if="row.type === 'openai_style'">
                                 {{ row.api_base_url || '-' }}
-                            </div>
+                            </el-text>
                         </template>
                     </el-table-column>
 
-                    <el-table-column prop="gpt_load_group_name" label="GPT Load 分组" width="150">
+                    <el-table-column label="GPT Load" width="140">
                         <template #default="{ row }">
-                            <span v-if="row.gpt_load_group_name" style="font-size: 12px;">{{ row.gpt_load_group_name }}</span>
-                            <span v-else style="color: #909399;">-</span>
+                            <el-tag v-if="row.gpt_load_group_name" size="small" effect="plain">
+                                {{ row.gpt_load_group_name }}
+                            </el-tag>
+                            <el-text v-else type="info" size="small">未配置</el-text>
                         </template>
                     </el-table-column>
 
-                    <el-table-column label="操作" width="200" fixed="right">
+                    <el-table-column label="关键字" width="100" align="center">
+                        <template #default="{ row }">
+                            <el-badge :value="(row.custom_keywords || []).length" :hidden="!row.custom_keywords || row.custom_keywords.length === 0">
+                                <el-button size="small" text @click="viewKeywords(row)">
+                                    <el-icon><View /></el-icon>
+                                </el-button>
+                            </el-badge>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="操作" width="280" fixed="right">
                         <template #default="{ row, $index }">
-                            <el-button size="small" @click="viewKeywords(row)">关键字</el-button>
-                            <el-button size="small" @click="showEditDialog(row, $index)">编辑</el-button>
-                            <el-button size="small" type="primary" @click="copyProvider(row)">复制</el-button>
-                            <el-button size="small" type="danger" @click="deleteProvider($index)">删除</el-button>
+                            <div class="table-actions">
+                                <el-button size="small" @click="showEditDialog(row, $index)">
+                                    <el-icon><Edit /></el-icon> 编辑
+                                </el-button>
+                                <el-button size="small" type="primary" @click="copyProvider(row)">
+                                    <el-icon><CopyDocument /></el-icon> 复制
+                                </el-button>
+                                <el-button size="small" type="danger" @click="deleteProvider($index)">
+                                    <el-icon><Delete /></el-icon> 删除
+                                </el-button>
+                            </div>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -144,35 +501,59 @@
             <!-- 关键字查看对话框 -->
             <el-dialog
                 v-model="keywordsDialogVisible"
-                title="搜索关键字"
-                width="700px"
+                title="搜索关键字配置"
+                width="800px"
+                :close-on-click-modal="false"
             >
-                <div v-if="selectedProvider">
-                    <div class="keywords-box">
-                        <div class="keywords-section-title">🔍 预设关键字（自动生成，不可修改）</div>
-                        <div v-if="presetKeywords.length > 0">
-                            <span v-for="keyword in presetKeywords" :key="keyword" class="keyword-tag">
-                                {{ keyword }}
-                            </span>
+                <div class="keywords-dialog" v-if="selectedProvider">
+                    <!-- 预设关键字 -->
+                    <div class="keywords-section">
+                        <div class="keywords-header">
+                            <span class="keywords-header-icon">🔍</span>
+                            <span class="keywords-header-title">预设关键字</span>
+                            <span class="keywords-header-badge">自动生成 · 只读</span>
                         </div>
-                        <div v-else style="color: #909399; font-size: 13px;">暂无预设关键字</div>
+                        <div class="keywords-content">
+                            <div v-if="presetKeywords.length > 0">
+                                <span v-for="(keyword, index) in presetKeywords" :key="index" class="keyword-tag preset">
+                                    {{ keyword }}
+                                </span>
+                            </div>
+                            <div v-else class="keywords-empty">
+                                <div class="keywords-empty-icon">📭</div>
+                                <div>暂无预设关键字</div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="keywords-box">
-                        <div class="keywords-section-title">✏️ 自定义关键字（可修改）</div>
-                        <div v-if="selectedProvider.custom_keywords && selectedProvider.custom_keywords.length > 0">
-                            <span v-for="keyword in selectedProvider.custom_keywords" :key="keyword" class="keyword-tag custom-tag">
-                                {{ keyword }}
-                            </span>
+                    <!-- 自定义关键字 -->
+                    <div class="keywords-section">
+                        <div class="keywords-header">
+                            <span class="keywords-header-icon">✏️</span>
+                            <span class="keywords-header-title">自定义关键字</span>
+                            <span class="keywords-header-badge">用户配置 · 可编辑</span>
                         </div>
-                        <div v-else style="color: #909399; font-size: 13px;">暂无自定义关键字</div>
+                        <div class="keywords-content">
+                            <div v-if="selectedProvider.custom_keywords && selectedProvider.custom_keywords.length > 0">
+                                <span v-for="(keyword, index) in selectedProvider.custom_keywords" :key="index" class="keyword-tag custom">
+                                    {{ keyword }}
+                                </span>
+                            </div>
+                            <div v-else class="keywords-empty">
+                                <div class="keywords-empty-icon">📝</div>
+                                <div>暂无自定义关键字</div>
+                                <div style="margin-top: 8px; font-size: 12px;">点击"编辑"按钮添加自定义关键字</div>
+                            </div>
+                        </div>
                     </div>
 
                     <el-alert type="info" :closable="false" style="margin-top: 16px;">
                         <template #title>
-                            <div style="font-size: 13px;">
-                                • 预设关键字：根据供应商类型和密钥模式自动生成<br>
-                                • 自定义关键字：在"编辑供应商"中添加，将在预设关键字之后搜索
+                            <div style="font-size: 13px; line-height: 1.6;">
+                                <strong>关键字说明：</strong><br>
+                                • 预设关键字根据供应商类型和密钥模式自动生成，用于基础搜索<br>
+                                • 自定义关键字由用户手动添加，在预设关键字之后搜索<br>
+                                • 两种关键字配合使用，可以最大化密钥发现率
                             </div>
                         </template>
                     </el-alert>
@@ -183,72 +564,115 @@
             <el-dialog
                 v-model="dialogVisible"
                 :title="dialogMode === 'add' ? '新增供应商' : '编辑供应商'"
-                width="700px"
+                width="750px"
+                :close-on-click-modal="false"
                 @close="resetDialog"
             >
-                <el-form :model="currentProvider" label-width="150px">
-                    <el-form-item label="供应商名称">
-                        <el-input v-model="currentProvider.name" placeholder="例如: gemini"></el-input>
-                    </el-form-item>
-
-                    <el-form-item label="供应商类型">
-                        <el-select v-model="currentProvider.type">
-                            <el-option label="Gemini" value="gemini"></el-option>
-                            <el-option label="OpenAI Style" value="openai_style"></el-option>
-                        </el-select>
-                    </el-form-item>
-
-                    <el-form-item label="检查模型">
-                        <el-input v-model="currentProvider.check_model" placeholder="例如: gemini-2.0-flash-exp"></el-input>
-                    </el-form-item>
-
-                    <el-form-item label="API Endpoint" v-if="currentProvider.type === 'gemini'">
-                        <el-input v-model="currentProvider.api_endpoint" placeholder="generativelanguage.googleapis.com"></el-input>
-                    </el-form-item>
-
-                    <el-form-item label="API Base URL" v-if="currentProvider.type === 'openai_style'">
-                        <el-input v-model="currentProvider.api_base_url" placeholder="https://api.openai.com/v1"></el-input>
-                    </el-form-item>
-
-                    <el-form-item label="密钥正则表达式">
-                        <el-input
-                            :model-value="currentProvider.key_patterns && currentProvider.key_patterns[0] || ''"
-                            @update:model-value="val => { if (!currentProvider.key_patterns) currentProvider.key_patterns = []; currentProvider.key_patterns[0] = val }"
-                            placeholder="AIzaSy[A-Za-z0-9\\-_]{33}">
-                            <template #append>
-                                <el-button @click="showPatternHelp">帮助</el-button>
-                            </template>
-                        </el-input>
-                        <small style="color: #909399;">注意：双斜杠需要转义为四个斜杠</small>
-                    </el-form-item>
-
-                    <el-form-item label="GPT Load 分组">
-                        <el-input v-model="currentProvider.gpt_load_group_name" placeholder="例如: gemini_daye"></el-input>
-                    </el-form-item>
-
-                    <el-form-item label="自定义关键字">
-                        <el-input
-                            v-model="customKeywordsText"
-                            type="textarea"
-                            :rows="5"
-                            placeholder="每行一个关键字&#10;例如:&#10;GEMINI_API_KEY&#10;GOOGLE_AI_KEY&#10;MY_CUSTOM_KEYWORD"
-                        ></el-input>
-                        <div style="margin-top: 8px;">
-                            <small style="color: #909399;">每行输入一个自定义关键字，搜索时会在预设关键字之后使用</small>
+                <el-form :model="currentProvider" label-width="140px">
+                    <!-- 基础信息 -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <div class="form-section-icon">📋</div>
+                            <span>基础信息</span>
                         </div>
-                    </el-form-item>
+                        <el-form-item label="供应商名称" required>
+                            <el-input v-model="currentProvider.name" placeholder="例如: gemini" />
+                        </el-form-item>
 
-                    <el-form-item label="跳过 AI 分析">
-                        <el-switch v-model="currentProvider.skip_ai_analysis"></el-switch>
-                        <small style="color: #909399; margin-left: 10px;">
-                            启用后，当所有供应商都无效时，不会对此供应商使用 AI 分析文件内容
-                        </small>
-                    </el-form-item>
+                        <el-form-item label="供应商类型" required>
+                            <el-select v-model="currentProvider.type" style="width: 100%;">
+                                <el-option label="Google Gemini" value="gemini">
+                                    <span>🔮 Google Gemini</span>
+                                </el-option>
+                                <el-option label="OpenAI Compatible" value="openai_style">
+                                    <span>🤖 OpenAI Compatible</span>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+
+                        <el-form-item label="验证模型" required>
+                            <el-input v-model="currentProvider.check_model" placeholder="例如: gemini-2.0-flash-exp" />
+                        </el-form-item>
+                    </div>
+
+                    <!-- API 配置 -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <div class="form-section-icon">🔌</div>
+                            <span>API 配置</span>
+                        </div>
+                        <el-form-item label="API Endpoint" v-if="currentProvider.type === 'gemini'">
+                            <el-input v-model="currentProvider.api_endpoint" placeholder="generativelanguage.googleapis.com" />
+                        </el-form-item>
+
+                        <el-form-item label="API Base URL" v-if="currentProvider.type === 'openai_style'">
+                            <el-input v-model="currentProvider.api_base_url" placeholder="https://api.openai.com/v1" />
+                        </el-form-item>
+
+                        <el-form-item label="密钥正则表达式" required>
+                            <el-input
+                                :model-value="currentProvider.key_patterns && currentProvider.key_patterns[0] || ''"
+                                @update:model-value="val => { if (!currentProvider.key_patterns) currentProvider.key_patterns = []; currentProvider.key_patterns[0] = val }"
+                                placeholder="AIzaSy[A-Za-z0-9\\-_]{33}">
+                                <template #append>
+                                    <el-button @click="showPatternHelp">
+                                        <el-icon><QuestionFilled /></el-icon>
+                                    </el-button>
+                                </template>
+                            </el-input>
+                            <div style="margin-top: 6px; font-size: 12px; color: #909399;">
+                                注意：正则表达式中的反斜杠需要转义（用四个反斜杠）
+                            </div>
+                        </el-form-item>
+                    </div>
+
+                    <!-- 同步配置 -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <div class="form-section-icon">🔄</div>
+                            <span>同步配置</span>
+                        </div>
+                        <el-form-item label="GPT Load 分组">
+                            <el-input v-model="currentProvider.gpt_load_group_name" placeholder="例如: gemini_daye" />
+                            <div style="margin-top: 6px; font-size: 12px; color: #909399;">
+                                配置后，有效密钥将自动同步到指定的 GPT Load 分组
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item label="跳过 AI 分析">
+                            <el-switch v-model="currentProvider.skip_ai_analysis" />
+                            <span style="margin-left: 12px; font-size: 13px; color: #909399;">
+                                启用后，当所有供应商都无效时，不会对此供应商使用 AI 分析文件内容
+                            </span>
+                        </el-form-item>
+                    </div>
+
+                    <!-- 搜索关键字 -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <div class="form-section-icon">🔍</div>
+                            <span>自定义搜索关键字</span>
+                        </div>
+                        <el-form-item label="关键字列表">
+                            <el-input
+                                v-model="customKeywordsText"
+                                type="textarea"
+                                :rows="6"
+                                placeholder="每行一个关键字&#10;&#10;例如:&#10;GEMINI_API_KEY&#10;GOOGLE_AI_KEY&#10;MY_CUSTOM_KEYWORD"
+                            />
+                            <div style="margin-top: 6px; font-size: 12px; color: #909399;">
+                                💡 每行输入一个自定义关键字，搜索时会在预设关键字之后使用
+                            </div>
+                        </el-form-item>
+                    </div>
                 </el-form>
 
                 <template #footer>
-                    <el-button @click="dialogVisible = false">取消</el-button>
-                    <el-button type="primary" @click="saveProvider">保存</el-button>
+                    <el-button @click="dialogVisible = false" size="large">取消</el-button>
+                    <el-button type="primary" @click="saveProvider" size="large" style="border-radius: 8px;">
+                        <el-icon><Check /></el-icon>
+                        <span style="margin-left: 8px;">保存</span>
+                    </el-button>
                 </template>
             </el-dialog>
         </div>
@@ -263,6 +687,7 @@
                 return {
                     loading: false,
                     providers: [],
+                    searchText: '',
                     dialogVisible: false,
                     keywordsDialogVisible: false,
                     dialogMode: 'add',
@@ -272,6 +697,17 @@
                     presetKeywords: [],
                     customKeywordsText: ''
                 };
+            },
+            computed: {
+                filteredProviders() {
+                    if (!this.searchText) return this.providers;
+                    const search = this.searchText.toLowerCase();
+                    return this.providers.filter(p =>
+                        p.name.toLowerCase().includes(search) ||
+                        p.type.toLowerCase().includes(search) ||
+                        p.check_model.toLowerCase().includes(search)
+                    );
+                }
             },
             mounted() {
                 this.checkAuth();
@@ -297,6 +733,11 @@
                         custom_keywords: []
                     };
                 },
+                getTotalCustomKeywords() {
+                    return this.providers.reduce((total, p) => {
+                        return total + (p.custom_keywords ? p.custom_keywords.length : 0);
+                    }, 0);
+                },
                 async loadProviders() {
                     this.loading = true;
                     try {
@@ -309,7 +750,6 @@
                         if (response.ok) {
                             const data = await response.json();
                             this.providers = Array.isArray(data) ? data : [];
-                            // 确保每个供应商都有 custom_keywords 数组
                             this.providers = this.providers.map(p => ({
                                 ...p,
                                 custom_keywords: p.custom_keywords || []
@@ -330,8 +770,8 @@
                 },
                 getProviderTypeLabel(type) {
                     const labels = {
-                        'gemini': 'Google Gemini',
-                        'openai_style': 'OpenAI Compatible'
+                        'gemini': 'Gemini',
+                        'openai_style': 'OpenAI'
                     };
                     return labels[type] || type;
                 },
@@ -346,29 +786,22 @@
                     this.currentIndex = index;
                     this.currentProvider = JSON.parse(JSON.stringify(provider));
 
-                    // 确保有 custom_keywords 数组
                     if (!this.currentProvider.custom_keywords) {
                         this.currentProvider.custom_keywords = [];
                     }
 
-                    // 将自定义关键字转换为文本（每行一个）
                     this.customKeywordsText = this.currentProvider.custom_keywords.join('\n');
-
                     this.dialogVisible = true;
                 },
                 copyProvider(provider) {
                     this.dialogMode = 'add';
                     this.currentProvider = JSON.parse(JSON.stringify(provider));
                     this.currentProvider.name = provider.name + '_copy';
-
-                    // 转换自定义关键字
                     this.customKeywordsText = (this.currentProvider.custom_keywords || []).join('\n');
-
                     this.dialogVisible = true;
                     ElMessage.success('已复制供应商配置，请修改名称后保存');
                 },
                 async saveProvider() {
-                    // 验证
                     if (!this.currentProvider.name) {
                         ElMessage.error('请输入供应商名称');
                         return;
@@ -382,13 +815,11 @@
                         return;
                     }
 
-                    // 解析自定义关键字（从文本转换为数组）
                     this.currentProvider.custom_keywords = this.customKeywordsText
                         .split('\n')
                         .map(line => line.trim())
                         .filter(line => line.length > 0);
 
-                    // 保存
                     if (this.dialogMode === 'add') {
                         this.providers.push(this.currentProvider);
                     } else {
@@ -400,16 +831,18 @@
                 },
                 deleteProvider(index) {
                     ElMessageBox.confirm(
-                        '确定要删除该供应商吗？',
+                        '确定要删除该供应商吗？删除后无法恢复。',
                         '确认删除',
                         {
-                            confirmButtonText: '确定',
+                            confirmButtonText: '确定删除',
                             cancelButtonText: '取消',
-                            type: 'warning'
+                            type: 'warning',
+                            buttonSize: 'large'
                         }
                     ).then(async () => {
                         this.providers.splice(index, 1);
                         await this.updateProviders();
+                        ElMessage.success('删除成功');
                     }).catch(() => {});
                 },
                 async updateProviders() {
@@ -445,24 +878,18 @@
                 },
                 viewKeywords(provider) {
                     this.selectedProvider = provider;
-
-                    // 生成预设关键字预览
                     this.presetKeywords = this.generatePresetKeywords(provider);
-
                     this.keywordsDialogVisible = true;
                 },
                 generatePresetKeywords(provider) {
-                    // 模拟预设关键字生成逻辑（与后端一致）
                     const keywords = [];
                     const providerName = provider.name.toUpperCase();
                     const patterns = provider.key_patterns || [];
 
-                    // 从正则表达式提取前缀
                     patterns.forEach(pattern => {
                         const match = pattern.match(/^([A-Za-z0-9\-_]{3,10})/);
                         if (match) {
                             const prefix = match[1];
-                            // 生成基础查询
                             const languages = ['python', 'javascript', 'typescript', 'go'];
                             languages.forEach(lang => {
                                 keywords.push(`"${providerName}_API_KEY" = "${prefix}" language:${lang}`);
@@ -481,7 +908,10 @@
                         'Cerebras: csk-[A-Za-z0-9]+\n\n' +
                         '注意：正则表达式中的反斜杠需要转义（用四个反斜杠）',
                         '密钥模式帮助',
-                        { confirmButtonText: '知道了' }
+                        {
+                            confirmButtonText: '知道了',
+                            buttonSize: 'large'
+                        }
                     );
                 }
             },

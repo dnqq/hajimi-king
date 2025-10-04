@@ -1,0 +1,156 @@
+/*
+ * 哈基米系统 - 全局表格样式
+ * 统一的现代化表格设计
+ */
+
+/* 表格容器 */
+.table-container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+/* Element Plus 表格自定义样式 */
+.el-table {
+    font-size: 14px;
+}
+
+.el-table th.el-table__cell {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 16px 12px;
+    border: none;
+}
+
+.el-table tr {
+    transition: all 0.3s ease;
+}
+
+.el-table tbody tr:hover > td {
+    background-color: #f5f7fa !important;
+}
+
+.el-table td.el-table__cell {
+    padding: 14px 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td {
+    background: #fafbfc;
+}
+
+.el-table__empty-block {
+    padding: 60px 0;
+}
+
+/* 表格内按钮组 */
+.table-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.table-actions .el-button {
+    margin: 0;
+}
+
+/* 状态标签 */
+.status-tag {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.status-tag.valid {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-tag.invalid {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.status-tag.rate-limited {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+
+.status-tag.pending {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+/* 密钥显示 */
+.key-display {
+    font-family: 'Courier New', Monaco, monospace;
+    background: #f5f7fa;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #606266;
+    display: inline-block;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 信息标签 */
+.info-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: #f0f2f5;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #606266;
+}
+
+.info-badge i {
+    font-size: 14px;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    color: #c0c4cc;
+    margin-bottom: 16px;
+}
+
+.empty-state-text {
+    font-size: 16px;
+    color: #909399;
+    margin-bottom: 24px;
+}
+
+/* 分页 */
+.table-pagination {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .table-actions {
+        flex-direction: column;
+    }
+
+    .el-table th.el-table__cell,
+    .el-table td.el-table__cell {
+        padding: 12px 8px;
+        font-size: 13px;
+    }
+}
