@@ -156,68 +156,34 @@
 
         .keywords-panel-body {
             flex: 1;
-            padding: 20px;
+            padding: 16px;
             background: #fafbfc;
-            overflow-y: auto;
-        }
-
-        .keywords-panel-body::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .keywords-panel-body::-webkit-scrollbar-thumb {
-            background: #d0d0d0;
-            border-radius: 3px;
-        }
-
-        .keyword-item {
-            background: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            font-family: 'Courier New', Monaco, monospace;
-            font-size: 13px;
-            color: #303133;
-            transition: all 0.2s;
-            word-break: break-all;
-        }
-
-        .keyword-item:hover {
-            border-color: #667eea;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
-        }
-
-        .keyword-item.preset {
-            border-left: 3px solid #2196F3;
-        }
-
-        .keyword-item.custom {
-            border-left: 3px solid #FF9800;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
         }
 
-        .keyword-item.custom .keyword-text {
+        .keywords-textarea {
             flex: 1;
         }
 
-        .keywords-empty {
-            text-align: center;
-            padding: 60px 20px;
-            color: #909399;
+        .keywords-textarea .el-textarea__inner {
+            font-family: 'Courier New', Monaco, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            resize: none;
+            height: 100% !important;
         }
 
-        .keywords-empty-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-            opacity: 0.3;
+        .keywords-textarea .el-textarea__inner:focus {
+            border-color: #667eea;
         }
 
-        .custom-keyword-input {
-            margin-top: 16px;
+        .keywords-textarea .el-textarea__inner[readonly] {
+            background: #f5f7fa;
+            cursor: default;
         }
 
         /* 编辑表单优化 */
@@ -398,15 +364,14 @@
                             <span>系统预设关键字（只读）</span>
                         </div>
                         <div class="keywords-panel-body">
-                            <div v-if="presetKeywords.length > 0">
-                                <div v-for="(keyword, index) in presetKeywords" :key="index" class="keyword-item preset">
-                                    {{ keyword }}
-                                </div>
-                            </div>
-                            <div v-else class="keywords-empty">
-                                <div class="keywords-empty-icon">🔍</div>
-                                <div>暂无预设关键字</div>
-                            </div>
+                            <el-input
+                                :model-value="presetKeywords.join('\n')"
+                                type="textarea"
+                                readonly
+                                :rows="20"
+                                placeholder="暂无预设关键字"
+                                class="keywords-textarea"
+                            ></el-input>
                         </div>
                     </div>
 
@@ -417,33 +382,13 @@
                             <span>自定义关键字（可编辑）</span>
                         </div>
                         <div class="keywords-panel-body">
-                            <div v-if="editingCustomKeywords.length > 0">
-                                <div v-for="(keyword, index) in editingCustomKeywords" :key="index" class="keyword-item custom">
-                                    <span class="keyword-text">{{ keyword }}</span>
-                                    <el-button size="small" type="danger" text @click="removeCustomKeyword(index)">
-                                        <el-icon><Close /></el-icon>
-                                    </el-button>
-                                </div>
-                            </div>
-                            <div v-else class="keywords-empty">
-                                <div class="keywords-empty-icon">✏️</div>
-                                <div>暂无自定义关键字</div>
-                                <div style="margin-top: 8px; font-size: 12px;">在下方添加关键字</div>
-                            </div>
-
-                            <!-- 添加新关键字 -->
-                            <div class="custom-keyword-input">
-                                <el-input
-                                    v-model="newKeywordsText"
-                                    type="textarea"
-                                    :rows="6"
-                                    placeholder="每行输入一个关键字"
-                                ></el-input>
-                                <el-button @click="addCustomKeywordsFromText" type="primary" style="margin-top: 12px; width: 100%;">
-                                    <el-icon><Plus /></el-icon>
-                                    <span style="margin-left: 8px;">批量添加关键字</span>
-                                </el-button>
-                            </div>
+                            <el-input
+                                v-model="customKeywordsText"
+                                type="textarea"
+                                :rows="20"
+                                placeholder="每行一个关键字，可直接编辑"
+                                class="keywords-textarea"
+                            ></el-input>
                         </div>
                     </div>
                 </div>
@@ -574,9 +519,7 @@
                     selectedProvider: null,
                     selectedProviderIndex: -1,
                     presetKeywords: [],
-                    editingCustomKeywords: [],
-                    newKeyword: '',
-                    newKeywordsText: ''
+                    customKeywordsText: ''
                 };
             },
             computed: {
@@ -672,53 +615,15 @@
                     this.selectedProvider = provider;
                     this.selectedProviderIndex = index;
                     this.presetKeywords = this.generatePresetKeywords(provider);
-                    this.editingCustomKeywords = [...(provider.custom_keywords || [])];
-                    this.newKeyword = '';
-                    this.newKeywordsText = '';
+                    this.customKeywordsText = (provider.custom_keywords || []).join('\n');
                     this.keywordsDialogVisible = true;
                 },
-                addCustomKeyword() {
-                    const keyword = this.newKeyword.trim();
-                    if (keyword && !this.editingCustomKeywords.includes(keyword)) {
-                        this.editingCustomKeywords.push(keyword);
-                        this.newKeyword = '';
-                        ElMessage.success('已添加关键字');
-                    } else if (this.editingCustomKeywords.includes(keyword)) {
-                        ElMessage.warning('关键字已存在');
-                    }
-                },
-                addCustomKeywordsFromText() {
-                    const keywords = this.newKeywordsText.split('\n')
+                async saveCustomKeywords() {
+                    const keywords = this.customKeywordsText.split('\n')
                         .map(k => k.trim())
                         .filter(k => k.length > 0);
 
-                    let addedCount = 0;
-                    let duplicateCount = 0;
-
-                    keywords.forEach(keyword => {
-                        if (!this.editingCustomKeywords.includes(keyword)) {
-                            this.editingCustomKeywords.push(keyword);
-                            addedCount++;
-                        } else {
-                            duplicateCount++;
-                        }
-                    });
-
-                    if (addedCount > 0) {
-                        ElMessage.success(`成功添加 ${addedCount} 个关键字${duplicateCount > 0 ? `，跳过 ${duplicateCount} 个重复项` : ''}`);
-                        this.newKeywordsText = '';
-                    } else if (duplicateCount > 0) {
-                        ElMessage.warning('所有关键字都已存在');
-                    } else {
-                        ElMessage.warning('请输入关键字');
-                    }
-                },
-                removeCustomKeyword(index) {
-                    this.editingCustomKeywords.splice(index, 1);
-                    ElMessage.success('已删除关键字');
-                },
-                async saveCustomKeywords() {
-                    this.providers[this.selectedProviderIndex].custom_keywords = [...this.editingCustomKeywords];
+                    this.providers[this.selectedProviderIndex].custom_keywords = keywords;
                     await this.updateProviders();
                     this.keywordsDialogVisible = false;
                 },
