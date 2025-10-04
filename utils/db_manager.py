@@ -10,6 +10,7 @@ from common.Logger import logger
 from web.models import APIKey, ScannedFile, ScanTask, SyncLog, DailyStat
 from web.database import SessionLocal
 from utils.crypto import key_encryption
+from utils.time_utils import now_shanghai
 
 
 class DBManager:
@@ -59,8 +60,8 @@ class DBManager:
                 source_file_sha=source_file_sha,
                 gpt_load_group_name=gpt_load_group_name,
                 extra_data=metadata or {},
-                discovered_at=datetime.utcnow(),
-                last_validated_at=datetime.utcnow() if status in ['valid', 'rate_limited'] else None
+                discovered_at=now_shanghai().replace(tzinfo=None),
+                last_validated_at=now_shanghai().replace(tzinfo=None) if status in ['valid', 'rate_limited'] else None
             )
 
             db.add(db_key)
@@ -79,7 +80,7 @@ class DBManager:
 
     @staticmethod
     def is_file_scanned(file_sha: str) -> bool:
-        """检查文件是否已扫描"""
+        """检查文件是否已扫描（基于SHA去重）"""
         db = SessionLocal()
         try:
             exists = db.query(ScannedFile).filter(ScannedFile.file_sha == file_sha).first() is not None
@@ -108,7 +109,7 @@ class DBManager:
                 keys_found=keys_found,
                 valid_keys_count=valid_keys_count,
                 repo_pushed_at=repo_pushed_at,
-                scanned_at=datetime.utcnow()
+                scanned_at=now_shanghai().replace(tzinfo=None)
             )
 
             db.add(scanned_file)
@@ -165,7 +166,7 @@ class DBManager:
                 group_name=db_key.gpt_load_group_name if target == 'gpt_load' else None,
                 status='success' if success else 'failed',
                 error_message=error_message,
-                synced_at=datetime.utcnow()
+                synced_at=now_shanghai().replace(tzinfo=None)
             )
 
             db.add(sync_log)
@@ -188,9 +189,22 @@ class DBManager:
             invalid_keys = db.query(func.count(APIKey.id)).filter(APIKey.status == 'invalid').scalar() or 0
             pending_keys = db.query(func.count(APIKey.id)).filter(APIKey.status == 'pending').scalar() or 0
 
-            # 今日新增
-            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            # 今日新增（上海时间）
+            today_start = now_shanghai().replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
             today_keys = db.query(func.count(APIKey.id)).filter(APIKey.discovered_at >= today_start).scalar() or 0
+
+            # 今日新增详情
+            today_valid_keys = db.query(func.count(APIKey.id)).filter(
+                and_(APIKey.discovered_at >= today_start, APIKey.status == 'valid')
+            ).scalar() or 0
+
+            today_rate_limited_keys = db.query(func.count(APIKey.id)).filter(
+                and_(APIKey.discovered_at >= today_start, APIKey.status == 'rate_limited')
+            ).scalar() or 0
+
+            today_invalid_keys = db.query(func.count(APIKey.id)).filter(
+                and_(APIKey.discovered_at >= today_start, APIKey.status == 'invalid')
+            ).scalar() or 0
 
             # 待同步
             pending_balancer_sync = db.query(func.count(APIKey.id)).filter(
@@ -208,6 +222,9 @@ class DBManager:
                 'invalid_keys': invalid_keys,
                 'pending_keys': pending_keys,
                 'today_keys': today_keys,
+                'today_valid_keys': today_valid_keys,
+                'today_rate_limited_keys': today_rate_limited_keys,
+                'today_invalid_keys': today_invalid_keys,
                 'pending_balancer_sync': pending_balancer_sync,
                 'pending_gpt_load_sync': pending_gpt_load_sync
             }
@@ -241,7 +258,7 @@ class DBManager:
             # 更新状态
             old_status = key_obj.status
             key_obj.status = status
-            key_obj.last_validated_at = datetime.utcnow()
+            key_obj.last_validated_at = now_shanghai().replace(tzinfo=None)
 
             # 更新元数据
             if metadata:

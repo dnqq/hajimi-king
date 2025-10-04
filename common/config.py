@@ -18,6 +18,8 @@ class Config:
 
     def __init__(self):
         self._config_loader = None
+        self._cache = {}  # 配置缓存
+        self._cache_timestamp = {}  # 缓存时间戳
 
     @property
     def config_loader(self):
@@ -30,6 +32,15 @@ class Config:
                 logger.warning(f"⚠️ Failed to load config_loader: {e}")
                 self._config_loader = None
         return self._config_loader
+
+    def reload_config(self):
+        """重新加载配置（清除缓存）"""
+        self._cache.clear()
+        self._cache_timestamp.clear()
+        if self._config_loader:
+            self._config_loader._cache.clear()
+            self._config_loader._cache_timestamp.clear()
+        logger.info("✅ Configuration reloaded")
 
     # ========== 核心配置（从 .env 读取）==========
 

@@ -13,12 +13,13 @@ const NavBar = {
                 <div class="navbar-left">
                     <div class="logo">
                         <span class="logo-icon">👑</span>
-                        <span class="logo-text">Hajimi King</span>
+                        <span class="logo-text">哈基米</span>
                     </div>
                     <div class="nav">
                         <a href="/" :class="{ active: activePage === 'dashboard' }">📊 仪表盘</a>
                         <a href="/keys" :class="{ active: activePage === 'keys' }">🔑 密钥管理</a>
                         <a href="/stats" :class="{ active: activePage === 'stats' }">📈 统计分析</a>
+                        <a href="/providers" :class="{ active: activePage === 'providers' }">🤖 AI供应商</a>
                         <a href="/config" :class="{ active: activePage === 'config' }">⚙️ 系统配置</a>
                     </div>
                 </div>

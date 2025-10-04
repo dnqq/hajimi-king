@@ -284,8 +284,15 @@
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">今日新增</div>
-                    <div class="stat-value" style="color: #409eff;">{{ stats.today_keys || 0 }}</div>
+                    <div class="stat-label">今日新增密钥</div>
+                    <div class="stat-value-container">
+                        <div class="stat-value" style="color: #409eff;">{{ stats.today_keys || 0 }}</div>
+                    </div>
+                    <div style="margin-top: 12px; font-size: 12px; color: #909399;">
+                        <div style="margin: 4px 0;">有效: <span style="color: #67c23a; font-weight: 500;">{{ stats.today_valid_keys || 0 }}</span></div>
+                        <div style="margin: 4px 0;">限流: <span style="color: #e6a23c; font-weight: 500;">{{ stats.today_rate_limited_keys || 0 }}</span></div>
+                        <div style="margin: 4px 0;">无效: <span style="color: #909399; font-weight: 500;">{{ stats.today_invalid_keys || 0 }}</span></div>
+                    </div>
                 </div>
             </div>
 
@@ -668,11 +675,9 @@
                 },
                 formatTime(timestamp) {
                     if (!timestamp) return '-';
-                    // 后端返回的是 UTC 时间字符串，需要添加 Z 标记确保正确解析
-                    const dateStr = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-                    const date = new Date(dateStr);
+                    // 后端返回的是上海时间，直接格式化显示
+                    const date = new Date(timestamp);
                     return date.toLocaleString('zh-CN', {
-                        timeZone: 'Asia/Shanghai',
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',

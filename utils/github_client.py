@@ -36,6 +36,9 @@ class GitHubClient:
         failed_requests = 0
         rate_limit_hits = 0
 
+        # Rate limit 追踪
+        last_rate_limit_info = None
+
         for page in range(1, 11):
             page_result = None
             page_success = False
@@ -66,10 +69,37 @@ class GitHubClient:
                         response = requests.get(self.GITHUB_API_URL, headers=headers, params=params, timeout=30, proxies=proxies)
                     else:
                         response = requests.get(self.GITHUB_API_URL, headers=headers, params=params, timeout=30)
+
+                    # 收集 Rate Limit 信息
                     rate_limit_remaining = response.headers.get('X-RateLimit-Remaining')
-                    # 只在剩余次数很少时警告
-                    if rate_limit_remaining and int(rate_limit_remaining) < 3:
-                        logger.warning(f"⚠️ Rate limit low: {rate_limit_remaining} remaining, token: {current_token}")
+                    rate_limit_limit = response.headers.get('X-RateLimit-Limit')
+                    rate_limit_reset = response.headers.get('X-RateLimit-Reset')
+
+                    last_rate_limit_info = {
+                        'token': current_token,
+                        'remaining': rate_limit_remaining,
+                        'limit': rate_limit_limit,
+                        'reset': rate_limit_reset,
+                        'resource': response.headers.get('X-RateLimit-Resource', 'search'),
+                    }
+
+                    # 详细的 Rate Limit 日志
+                    if rate_limit_remaining and rate_limit_limit:
+                        remaining_int = int(rate_limit_remaining)
+                        limit_int = int(rate_limit_limit)
+                        usage_rate = ((limit_int - remaining_int) / limit_int * 100) if limit_int > 0 else 0
+
+                        if remaining_int < 3:
+                            logger.warning(
+                                f"⚠️ Rate Limit Critical: {remaining_int}/{limit_int} remaining ({usage_rate:.1f}% used), "
+                                f"token: {current_token[:12]}..., query: {query[:50]}..."
+                            )
+                        elif page == 1:  # 每个查询的第一页输出一次
+                            logger.info(
+                                f"📊 Rate Limit: {remaining_int}/{limit_int} ({usage_rate:.1f}% used), "
+                                f"token: {current_token[:12]}..."
+                            )
+
                     response.raise_for_status()
                     page_result = response.json()
                     page_success = True
@@ -81,8 +111,29 @@ class GitHubClient:
                     if status in (403, 429):
                         rate_limit_hits += 1
                         wait = min(2 ** attempt + random.uniform(0, 1), 60)
-                        # 只在严重情况下记录详细日志
-                        if attempt >= 3:
+
+                        # 详细的限流错误日志
+                        if e.response:
+                            error_remaining = e.response.headers.get('X-RateLimit-Remaining', 'N/A')
+                            error_reset = e.response.headers.get('X-RateLimit-Reset', 'N/A')
+                            if error_reset != 'N/A':
+                                from datetime import datetime
+                                reset_time = datetime.fromtimestamp(int(error_reset))
+                                reset_str = reset_time.strftime('%H:%M:%S')
+                            else:
+                                reset_str = 'N/A'
+
+                            logger.error(
+                                f"🚫 Rate Limit Hit (HTTP {status}): "
+                                f"attempt {attempt}/{max_retries}, "
+                                f"remaining: {error_remaining}, "
+                                f"reset at: {reset_str}, "
+                                f"token: {current_token[:12]}..., "
+                                f"query: {query[:50]}..., "
+                                f"page: {page}, "
+                                f"waiting {wait:.1f}s before retry"
+                            )
+                        else:
                             logger.warning(f"❌ Rate limit hit, status:{status} (attempt {attempt}/{max_retries}) - waiting {wait:.1f}s")
                         time.sleep(wait)
                         continue
@@ -151,12 +202,19 @@ class GitHubClient:
         result = {
             "total_count": total_count,
             "incomplete_results": final_count < expected_total if expected_total else False,
-            "items": all_items
+            "items": all_items,
+            "rate_limit_info": last_rate_limit_info,  # 添加 rate limit 信息
+            "stats": {
+                "total_requests": total_requests,
+                "failed_requests": failed_requests,
+                "rate_limit_hits": rate_limit_hits,
+                "pages_processed": pages_processed,
+            }
         }
 
         return result
 
-    def get_file_content(self, item: Dict[str, Any]) -> Optional[str]:
+    def get_file_content(self, item: Dict[str, Any], return_rate_limit: bool = False) -> Optional[str] | tuple:
         repo_full_name = item["repository"]["full_name"]
         file_path = item["path"]
 
@@ -169,6 +227,8 @@ class GitHubClient:
         if token:
             headers["Authorization"] = f"token {token}"
 
+        rate_limit_info = None
+
         try:
             # 获取proxy配置
             proxies = config.get_random_proxy()
@@ -179,26 +239,35 @@ class GitHubClient:
             else:
                 metadata_response = requests.get(metadata_url, headers=headers)
 
+            # 收集 Core API Rate Limit
+            rate_limit_info = {
+                'token': token,
+                'remaining': metadata_response.headers.get('X-RateLimit-Remaining'),
+                'limit': metadata_response.headers.get('X-RateLimit-Limit'),
+                'reset': metadata_response.headers.get('X-RateLimit-Reset'),
+                'resource': metadata_response.headers.get('X-RateLimit-Resource', 'core'),
+            }
+
             metadata_response.raise_for_status()
             file_metadata = metadata_response.json()
 
             # 检查是否有base64编码的内容
             encoding = file_metadata.get("encoding")
             content = file_metadata.get("content")
-            
+
             if encoding == "base64" and content:
                 try:
                     # 解码base64内容
                     decoded_content = base64.b64decode(content).decode('utf-8')
-                    return decoded_content
+                    return (decoded_content, rate_limit_info) if return_rate_limit else decoded_content
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to decode base64 content: {e}, falling back to download_url")
-            
+
             # 如果没有base64内容或解码失败，使用原有的download_url逻辑
             download_url = file_metadata.get("download_url")
             if not download_url:
                 logger.warning(f"⚠️ No download URL found for file: {metadata_url}")
-                return None
+                return (None, rate_limit_info) if return_rate_limit else None
 
             if proxies:
                 content_response = requests.get(download_url, headers=headers, proxies=proxies)
@@ -206,11 +275,12 @@ class GitHubClient:
                 content_response = requests.get(download_url, headers=headers)
             logger.info(f"⏳ checking for keys from:  {download_url},status: {content_response.status_code}")
             content_response.raise_for_status()
-            return content_response.text
+
+            return (content_response.text, rate_limit_info) if return_rate_limit else content_response.text
 
         except requests.exceptions.RequestException as e:
             logger.error(f"❌ Failed to fetch file content: {metadata_url}, {type(e).__name__}")
-            return None
+            return (None, rate_limit_info) if return_rate_limit else None
 
     @staticmethod
     def create_instance(tokens: List[str]) -> 'GitHubClient':

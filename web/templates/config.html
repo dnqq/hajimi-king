@@ -77,64 +77,6 @@
         <nav-bar active-page="config"></nav-bar>
 
         <div class="main-container" v-loading="loading">
-            <!-- AI 供应商配置 -->
-            <div class="config-section">
-                <div class="section-title">AI 供应商配置</div>
-
-                <div v-for="(provider, index) in config.ai_providers" :key="index" class="provider-card">
-                    <div class="provider-header" @click="toggleProvider(index)">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="collapse-icon" :class="{ collapsed: !provider.expanded }">▼</span>
-                            <h4 style="margin: 0;">{{ provider.name || `供应商 #${index + 1}` }}</h4>
-                        </div>
-                        <el-button type="danger" size="small" @click.stop="removeProvider(index)">删除</el-button>
-                    </div>
-
-                    <div v-show="provider.expanded" class="provider-content">
-                        <el-form label-width="150px">
-                        <el-form-item label="供应商名称">
-                            <el-input v-model="provider.name" placeholder="例如: gemini"></el-input>
-                        </el-form-item>
-
-                        <el-form-item label="供应商类型">
-                            <el-select v-model="provider.type">
-                                <el-option label="Gemini" value="gemini"></el-option>
-                                <el-option label="OpenAI Style" value="openai_style"></el-option>
-                            </el-select>
-                        </el-form-item>
-
-                        <el-form-item label="检查模型">
-                            <el-input v-model="provider.check_model" placeholder="例如: gemini-2.5-flash"></el-input>
-                        </el-form-item>
-
-                        <el-form-item label="API Endpoint" v-if="provider.type === 'gemini'">
-                            <el-input v-model="provider.api_endpoint" placeholder="generativelanguage.googleapis.com"></el-input>
-                        </el-form-item>
-
-                        <el-form-item label="API Base URL" v-if="provider.type === 'openai_style'">
-                            <el-input v-model="provider.api_base_url" placeholder="https://api.openai.com/v1"></el-input>
-                        </el-form-item>
-
-                        <el-form-item label="密钥正则表达式">
-                            <el-input v-model="provider.key_patterns[0]" placeholder="AIzaSy[A-Za-z0-9\\-_]{33}"></el-input>
-                            <small style="color: #909399;">注意：双斜杠需要转义为四个斜杠</small>
-                        </el-form-item>
-
-                        <el-form-item label="GPT Load 分组">
-                            <el-input v-model="provider.gpt_load_group_name" placeholder="例如: gemini_daye"></el-input>
-                        </el-form-item>
-
-                        <el-form-item label="跳过 AI 分析">
-                            <el-switch v-model="provider.skip_ai_analysis"></el-switch>
-                        </el-form-item>
-                        </el-form>
-                    </div>
-                </div>
-
-                <el-button type="primary" @click="addProvider">添加供应商</el-button>
-                <el-button type="success" @click="saveAIProviders">保存 AI 供应商配置</el-button>
-            </div>
-
             <!-- GitHub 配置 -->
             <div class="config-section">
                 <div class="section-title">GitHub 配置</div>
@@ -248,6 +190,26 @@
                     <el-button type="success" @click="saveAIAnalysisConfig">保存 AI 分析配置</el-button>
                 </el-form>
             </div>
+
+            <!-- Telegram 通知配置 -->
+            <div class="config-section">
+                <div class="section-title">Telegram 通知配置</div>
+
+                <el-form label-width="180px">
+                    <el-form-item label="Bot Token">
+                        <el-input v-model="config.telegram.bot_token" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" show-password></el-input>
+                        <small style="color: #909399;">通过 @BotFather 创建 Bot 获取 Token</small>
+                    </el-form-item>
+
+                    <el-form-item label="Chat ID">
+                        <el-input v-model="config.telegram.chat_id" placeholder="-1001234567890"></el-input>
+                        <small style="color: #909399;">个人对话或群组的 Chat ID</small>
+                    </el-form-item>
+
+                    <el-button type="success" @click="saveTelegramConfig">保存 Telegram 配置</el-button>
+                    <el-button type="primary" @click="testTelegram" style="margin-left: 10px;">发送测试消息</el-button>
+                </el-form>
+            </div>
         </div>
     </div>
 
@@ -258,7 +220,6 @@
                 return {
                     loading: false,
                     config: {
-                        ai_providers: [],
                         sync: {
                             gemini_balancer_enabled: false,
                             gemini_balancer_url: '',
@@ -280,6 +241,10 @@
                         github: {
                             tokens: [],
                             proxy: []
+                        },
+                        telegram: {
+                            bot_token: '',
+                            chat_id: ''
                         }
                     },
                     githubTokensText: '',
@@ -316,13 +281,6 @@
                             this.githubTokensText = (data.github.tokens || []).join('\n');
                             this.githubProxyText = (data.github.proxy || []).join('\n');
                             this.searchBlacklistText = (data.search.file_path_blacklist || []).join(', ');
-
-                            // 确保 ai_providers 每个元素都有 key_patterns 数组和 expanded 属性（默认折叠）
-                            this.config.ai_providers = (data.ai_providers || []).map(p => ({
-                                ...p,
-                                key_patterns: p.key_patterns || [''],
-                                expanded: false  // 默认折叠
-                            }));
                         } else if (response.status === 401) {
                             this.$message.error('认证失败，请重新登录');
                             localStorage.removeItem('access_token');
@@ -330,49 +288,6 @@
                         }
                     } catch (error) {
                         this.$message.error('加载配置失败: ' + error.message);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-                toggleProvider(index) {
-                    this.config.ai_providers[index].expanded = !this.config.ai_providers[index].expanded;
-                },
-                addProvider() {
-                    this.config.ai_providers.push({
-                        name: '',
-                        type: 'gemini',
-                        check_model: '',
-                        api_endpoint: '',
-                        api_base_url: '',
-                        key_patterns: [''],
-                        gpt_load_group_name: '',
-                        skip_ai_analysis: false,
-                        expanded: true  // 新添加的默认展开
-                    });
-                },
-                removeProvider(index) {
-                    this.config.ai_providers.splice(index, 1);
-                },
-                async saveAIProviders() {
-                    this.loading = true;
-                    try {
-                        const token = localStorage.getItem('access_token');
-                        const response = await fetch('/api/config/ai_providers', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify(this.config.ai_providers)
-                        });
-
-                        if (response.ok) {
-                            this.$message.success('AI 供应商配置保存成功');
-                        } else {
-                            throw new Error('保存失败');
-                        }
-                    } catch (error) {
-                        this.$message.error('保存失败: ' + error.message);
                     } finally {
                         this.loading = false;
                     }
@@ -489,6 +404,53 @@
                         }
                     } catch (error) {
                         this.$message.error('保存失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async saveTelegramConfig() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/telegram', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(this.config.telegram)
+                        });
+
+                        if (response.ok) {
+                            this.$message.success('Telegram 配置保存成功');
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        this.$message.error('保存失败: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async testTelegram() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/telegram/test', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            this.$message.success(result.message);
+                        } else {
+                            this.$message.error(result.message);
+                        }
+                    } catch (error) {
+                        this.$message.error('测试失败: ' + error.message);
                     } finally {
                         this.loading = false;
                     }

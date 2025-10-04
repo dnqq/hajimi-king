@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-from web.api import keys, stats, scan, sync, export, notify, config
+from web.api import keys, stats, scan, sync, export, notify, config, rate_limit
 from web.auth import WEB_ACCESS_KEY
 from common.Logger import logger
 
@@ -35,6 +35,7 @@ app.include_router(sync.router, prefix="/api/sync", tags=["Sync"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(notify.router, prefix="/api/notify", tags=["Notify"])
 app.include_router(config.router, tags=["Config"])
+app.include_router(rate_limit.router, prefix="/api", tags=["Rate Limit"])
 
 # 静态文件服务
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -108,6 +109,15 @@ async def config_page():
     if os.path.exists(config_path):
         return FileResponse(config_path)
     return HTMLResponse("<h1>Configuration</h1>")
+
+
+@app.get("/providers", response_class=HTMLResponse)
+async def providers_page():
+    """AI供应商管理页面"""
+    providers_path = os.path.join(templates_dir, "providers.html")
+    if os.path.exists(providers_path):
+        return FileResponse(providers_path)
+    return HTMLResponse("<h1>AI Providers Management</h1>")
 
 
 @app.get("/health")

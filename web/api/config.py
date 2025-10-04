@@ -70,6 +70,12 @@ class GithubConfig(BaseModel):
     proxy: List[str] = []
 
 
+class TelegramConfig(BaseModel):
+    """Telegram 配置"""
+    bot_token: str = ""
+    chat_id: str = ""
+
+
 # ============= Helper Functions =============
 
 def get_config_value(db: Session, key: str, default: Any = None) -> Any:
@@ -131,6 +137,10 @@ async def get_all_configs(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "github": get_config_value(db, "github_config", {
             "tokens": [],
             "proxy": []
+        }),
+        "telegram": get_config_value(db, "telegram_config", {
+            "bot_token": "",
+            "chat_id": ""
         })
     }
 
@@ -154,8 +164,12 @@ async def update_ai_providers(
     providers_data = [p.model_dump() for p in providers]
     set_config_value(db, "ai_providers", providers_data, "AI 供应商配置")
 
-    logger.info(f"✅ Updated AI providers config: {len(providers_data)} providers")
-    return {"success": True, "message": f"Updated {len(providers_data)} providers"}
+    # 重新加载配置（热更新）
+    from common.config import config
+    config.reload_config()
+
+    logger.info(f"✅ Updated AI providers config: {len(providers_data)} providers (hot reloaded)")
+    return {"success": True, "message": f"Updated {len(providers_data)} providers (hot reloaded)"}
 
 
 @router.get("/sync")
@@ -252,16 +266,20 @@ async def get_github_config(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
 @router.post("/github")
 async def update_github_config(
-    config: GithubConfig,
+    config_data: GithubConfig,
     db: Session = Depends(get_db)
 ):
     """
     更新 GitHub 配置
     """
-    set_config_value(db, "github_config", config.model_dump(), "GitHub Tokens 和代理配置")
+    set_config_value(db, "github_config", config_data.model_dump(), "GitHub Tokens 和代理配置")
 
-    logger.info(f"✅ Updated GitHub config: {len(config.tokens)} tokens, {len(config.proxy)} proxies")
-    return {"success": True, "message": "GitHub config updated"}
+    # 重新加载配置（热更新）
+    from common.config import config
+    config.reload_config()
+
+    logger.info(f"✅ Updated GitHub config: {len(config_data.tokens)} tokens, {len(config_data.proxy)} proxies (hot reloaded)")
+    return {"success": True, "message": "GitHub config updated (hot reloaded)"}
 
 
 @router.get("/{config_key}")
@@ -292,5 +310,79 @@ async def update_config(
     """
     set_config_value(db, config_key, request.value)
 
+    # 重新加载配置
+    from common.config import config
+    config.reload_config()
+
     logger.info(f"✅ Updated config: {config_key}")
     return {"success": True, "message": f"Config '{config_key}' updated"}
+
+
+@router.post("/reload")
+async def reload_config():
+    """
+    手动重新加载配置（热更新）
+    """
+    from common.config import config
+    config.reload_config()
+
+    logger.info("🔄 Configuration manually reloaded")
+    return {"success": True, "message": "Configuration reloaded successfully"}
+
+
+@router.get("/telegram")
+async def get_telegram_config(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """
+    获取 Telegram 配置
+    """
+    return get_config_value(db, "telegram_config", {
+        "bot_token": "",
+        "chat_id": ""
+    })
+
+
+@router.post("/telegram")
+async def update_telegram_config(
+    config_data: TelegramConfig,
+    db: Session = Depends(get_db)
+):
+    """
+    更新 Telegram 配置
+    """
+    set_config_value(db, "telegram_config", config_data.model_dump(), "Telegram 通知配置")
+
+    # 重新加载 Telegram 通知器
+    from utils.telegram_notifier import reload_telegram_notifier
+    reload_telegram_notifier()
+
+    logger.info("✅ Updated Telegram config (hot reloaded)")
+    return {"success": True, "message": "Telegram config updated (hot reloaded)"}
+
+
+@router.post("/telegram/test")
+async def test_telegram(db: Session = Depends(get_db)):
+    """
+    测试 Telegram 配置
+    """
+    from utils.telegram_notifier import TelegramNotifier
+
+    # 获取配置
+    telegram_config = get_config_value(db, "telegram_config", {})
+    bot_token = telegram_config.get('bot_token', '')
+    chat_id = telegram_config.get('chat_id', '')
+
+    if not bot_token or not chat_id:
+        return {"success": False, "message": "Telegram 配置不完整"}
+
+    # 发送测试消息
+    notifier = TelegramNotifier(bot_token, chat_id)
+    success = notifier.send_message(
+        "🧪 <b>测试消息</b>\n\n"
+        "如果你收到这条消息，说明 Telegram 配置成功！\n\n"
+        "✅ 哈基米系统"
+    )
+
+    if success:
+        return {"success": True, "message": "测试消息已发送"}
+    else:
+        return {"success": False, "message": "发送测试消息失败，请检查配置"}

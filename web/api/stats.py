@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from web.database import get_db
 from web.models import APIKey, DailyStat, ScannedFile
 from web.schemas import StatsSummary, ProviderStat, DailyStatResponse
+from utils.time_utils import now_shanghai
 
 router = APIRouter()
 
@@ -25,7 +26,8 @@ async def get_stats_summary(db: Session = Depends(get_db)):
     # 获取基础统计
     stats = db_manager.get_stats_summary()
 
-    now = datetime.utcnow()
+    # 使用上海时间计算
+    now = now_shanghai().replace(tzinfo=None)
 
     # 时间范围定义
     yesterday_start = now - timedelta(days=2)
@@ -180,7 +182,7 @@ async def get_daily_stats(days: int = 7, db: Session = Depends(get_db)):
     """
     from sqlalchemy import case
 
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = now_shanghai().replace(tzinfo=None) - timedelta(days=days)
 
     # 按日期和供应商分组统计
     try:
@@ -286,7 +288,7 @@ async def get_provider_validity_trend(days: int = 30, db: Session = Depends(get_
     """
     from sqlalchemy import case
 
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = now_shanghai().replace(tzinfo=None) - timedelta(days=days)
 
     try:
         # 按日期和供应商统计有效率

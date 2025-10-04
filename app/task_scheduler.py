@@ -70,13 +70,31 @@ class TaskScheduler:
         revalidation_thread.start()
         self.threads.append(revalidation_thread)
 
+        # 5. 同步监控线程（每小时检查一次）
+        sync_monitor_thread = threading.Thread(
+            target=self._sync_monitor_worker,
+            name="SyncMonitorWorker",
+            daemon=True
+        )
+        sync_monitor_thread.start()
+        self.threads.append(sync_monitor_thread)
+
         logger.info("✅ Task scheduler started with 4 worker types")
 
     def _search_worker(self):
-        """搜索线程：执行 GitHub 搜索"""
+        """搜索线程：执行 GitHub 搜索（响应式调度）"""
         from utils.github_client import GitHubClient
+        from app.rate_limit_monitor import rate_limit_monitor
+        import time
 
         github_client = GitHubClient(config.GITHUB_TOKENS)
+
+        # 注册所有 tokens
+        for token in config.GITHUB_TOKENS:
+            rate_limit_monitor.register_token(token)
+
+        # 首次启动立即执行
+        first_run = True
 
         while not self.shutdown_flag.is_set():
             try:
@@ -88,7 +106,21 @@ class TaskScheduler:
                     time.sleep(300)
                     continue
 
-                logger.info(f"🔍 Starting search with {len(search_queries)} queries")
+                # 去重关键字（仅限本次任务运行）
+                original_count = len(search_queries)
+                search_queries = list(dict.fromkeys(search_queries))  # 保持顺序的去重
+                deduplicated_count = len(search_queries)
+
+                if original_count != deduplicated_count:
+                    logger.info(f"🔄 Deduplicated queries: {original_count} → {deduplicated_count} ({original_count - deduplicated_count} duplicates removed)")
+
+                logger.info(f"🔍 Starting search with {len(search_queries)} unique queries")
+
+                # 记录执行开始时间和统计
+                start_time = time.time()
+                total_search_requests = 0
+                total_core_requests = 0
+                files_processed = 0
 
                 for i, query in enumerate(search_queries, 1):
                     if self.shutdown_flag.is_set():
@@ -97,6 +129,23 @@ class TaskScheduler:
                     try:
                         result = github_client.search_for_keys(query)
 
+                        # 更新 rate limit monitor
+                        if result and "rate_limit_info" in result and result["rate_limit_info"]:
+                            rate_info = result["rate_limit_info"]
+                            rate_limit_monitor.update_from_response(
+                                token=rate_info['token'],
+                                headers={
+                                    'X-RateLimit-Remaining': rate_info['remaining'],
+                                    'X-RateLimit-Limit': rate_info['limit'],
+                                    'X-RateLimit-Reset': rate_info['reset'],
+                                },
+                                api_type='search'
+                            )
+
+                        # 统计请求数
+                        if result and "stats" in result:
+                            total_search_requests += result["stats"]["total_requests"]
+
                         if result and "items" in result:
                             for item in result["items"]:
                                 # 放入校验队列
@@ -104,6 +153,7 @@ class TaskScheduler:
                                     'item': item,
                                     'query': query
                                 })
+                                files_processed += 1
 
                         # API 限流控制
                         if i % 5 == 0:
@@ -112,15 +162,37 @@ class TaskScheduler:
                     except Exception as e:
                         logger.error(f"Search error for query '{query}': {e}")
 
-                # 搜索完成，等待下次执行
-                next_run_hour = int(os.getenv("DAILY_RUN_HOUR", "3"))
-                next_run = datetime.now().replace(hour=next_run_hour, minute=0, second=0)
-                if next_run <= datetime.now():
-                    next_run += timedelta(days=1)
+                # 记录执行统计
+                duration = time.time() - start_time
+                rate_limit_monitor.record_search_execution(
+                    queries_count=len(search_queries),
+                    files_processed=files_processed,
+                    search_requests=total_search_requests,
+                    core_requests=total_core_requests,  # 校验线程会更新
+                    duration_seconds=duration
+                )
 
-                sleep_seconds = (next_run - datetime.now()).total_seconds()
-                logger.info(f"💤 Search complete, next run at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-                time.sleep(sleep_seconds)
+                # 检查是否启用动态调度
+                use_dynamic = os.getenv("DYNAMIC_SCHEDULING", "true").lower() == "true"
+
+                if use_dynamic:
+                    # 🎯 智能调度：根据实际消耗计算下次间隔
+                    sleep_seconds = rate_limit_monitor.calculate_next_interval()
+                    next_run = datetime.now() + timedelta(seconds=sleep_seconds)
+                    logger.info(f"💤 Search complete, next run at {next_run.strftime('%Y-%m-%d %H:%M:%S')} "
+                               f"(dynamic scheduling, interval: {sleep_seconds/60:.1f} min)")
+                else:
+                    # 固定时间调度（支持简化配置）
+                    schedule_config = os.getenv("SCHEDULE_CRON", "3")
+                    next_run, sleep_seconds = self._parse_schedule_config(schedule_config)
+                    logger.info(f"💤 Search complete, next run at {next_run.strftime('%Y-%m-%d %H:%M:%S')} "
+                               f"(fixed schedule: {schedule_config})")
+
+                # 分段休眠，以便能够响应 shutdown 信号
+                while sleep_seconds > 0 and not self.shutdown_flag.is_set():
+                    sleep_chunk = min(sleep_seconds, 60)
+                    time.sleep(sleep_chunk)
+                    sleep_seconds -= sleep_chunk
 
             except Exception as e:
                 logger.error(f"Search worker error: {e}")
@@ -141,7 +213,7 @@ class TaskScheduler:
                 file_path = item.get("path", "")
                 repo_name = item["repository"]["full_name"]
 
-                # 检查是否已扫描
+                # 检查是否已扫描（基于SHA去重）
                 if db_manager.is_file_scanned(file_sha):
                     continue
 
@@ -302,8 +374,57 @@ class TaskScheduler:
         except Exception as e:
             logger.error(f"Failed to sync pending keys: {e}")
 
+    def _parse_schedule_config(self, config: str) -> tuple:
+        """
+        解析调度配置，返回 (next_run_time, sleep_seconds)
+
+        支持格式：
+        - "3" : 每天凌晨3点
+        - "3,9,15,21" : 每天多个时间点
+        - "*/2" : 每2小时
+        """
+        now = datetime.now()
+
+        # 简单小时格式: "3" 或 "3,9,15,21"
+        if ',' in config:
+            # 多个时间点
+            hours = [int(h.strip()) for h in config.split(',')]
+            hours.sort()
+
+            # 找到下一个执行时间
+            current_hour = now.hour
+            next_hour = None
+
+            for h in hours:
+                if h > current_hour:
+                    next_hour = h
+                    break
+
+            if next_hour is None:
+                # 今天没有了，用明天的第一个
+                next_hour = hours[0]
+                next_run = (now + timedelta(days=1)).replace(hour=next_hour, minute=0, second=0, microsecond=0)
+            else:
+                next_run = now.replace(hour=next_hour, minute=0, second=0, microsecond=0)
+
+        elif config.startswith('*/'):
+            # 每N小时: "*/2"
+            interval_hours = int(config[2:])
+            next_run = now + timedelta(hours=interval_hours)
+            next_run = next_run.replace(minute=0, second=0, microsecond=0)
+
+        else:
+            # 单个小时: "3"
+            hour = int(config)
+            next_run = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if next_run <= now:
+                next_run += timedelta(days=1)
+
+        sleep_seconds = (next_run - datetime.now()).total_seconds()
+        return next_run, sleep_seconds
+
     def _get_search_queries(self):
-        """获取搜索查询（自动生成，数据库模式）"""
+        """获取搜索查询（自动生成，数据库模式，支持自定义关键字）"""
         auto_queries = []
         providers = config.AI_PROVIDERS_CONFIG
 
@@ -313,6 +434,7 @@ class TaskScheduler:
         for provider in providers:
             patterns = provider.get('key_patterns', [])
             provider_name = provider.get('name', '').upper()
+            custom_keywords = provider.get('custom_keywords', [])
 
             for pattern in patterns:
                 import re
@@ -329,9 +451,15 @@ class TaskScheduler:
                     else:
                         continue
 
-                # 核心查询
+                # 核心查询（预设）
                 for lang in languages:
                     auto_queries.append(f'"{provider_name}_API_KEY" = "{prefix}" language:{lang}')
+
+                # 自定义关键字查询
+                for custom_keyword in custom_keywords:
+                    if custom_keyword and custom_keyword.strip():
+                        for lang in languages:
+                            auto_queries.append(f'"{custom_keyword}" "{prefix}" language:{lang}')
 
         return auto_queries
 
@@ -378,6 +506,26 @@ class TaskScheduler:
                 logger.error(traceback.format_exc())
                 # 出错后等待 1 小时再重试
                 time.sleep(3600)
+
+    def _sync_monitor_worker(self):
+        """同步监控线程：每小时检查一次"""
+        from app.sync_monitor import sync_monitor
+
+        # 首次延迟15分钟启动
+        time.sleep(900)
+
+        while not self.shutdown_flag.is_set():
+            try:
+                logger.info("🔍 Running sync monitor check...")
+                sync_monitor.check_and_notify()
+
+                # 每小时检查一次
+                if self.shutdown_flag.wait(timeout=3600):
+                    break
+
+            except Exception as e:
+                logger.error(f"❌ Sync monitor worker error: {e}")
+                time.sleep(3600)  # 发生错误后等待1小时再试
 
     def shutdown(self):
         """停止所有线程"""

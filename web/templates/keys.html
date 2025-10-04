@@ -138,8 +138,17 @@
                     </el-table-column>
                     <el-table-column label="同步状态" width="120">
                         <template #default="scope">
-                            <el-icon v-if="scope.row.synced_to_balancer || scope.row.synced_to_gpt_load" color="#67c23a"><SuccessFilled /></el-icon>
-                            <el-icon v-else color="#909399"><CircleCloseFilled /></el-icon>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <el-tooltip v-if="scope.row.synced_to_balancer" content="已同步到Balancer" placement="top">
+                                    <el-tag type="success" size="small">B</el-tag>
+                                </el-tooltip>
+                                <el-tooltip v-if="scope.row.synced_to_gpt_load" content="已同步到GPT Load" placement="top">
+                                    <el-tag type="success" size="small">G</el-tag>
+                                </el-tooltip>
+                                <el-tag v-if="!scope.row.synced_to_balancer && !scope.row.synced_to_gpt_load" type="info" size="small">
+                                    未同步
+                                </el-tag>
+                            </div>
                         </template>
                     </el-table-column>
                     <el-table-column prop="discovered_at" label="发现时间" width="180">
@@ -441,11 +450,9 @@
                 },
                 formatTime(timestamp) {
                     if (!timestamp) return '-';
-                    // 后端返回的是 UTC 时间字符串，需要添加 Z 标记确保正确解析
-                    const dateStr = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-                    const date = new Date(dateStr);
+                    // 后端返回的是上海时间，直接格式化显示
+                    const date = new Date(timestamp);
                     return date.toLocaleString('zh-CN', {
-                        timeZone: 'Asia/Shanghai',
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',

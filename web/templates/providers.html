@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI供应商管理 - 哈基米</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
+    <script src="/static/js/vue.global.prod.js"></script>
+    <script src="/static/js/element-plus.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <style id="navbar-styles"></style>
+    <script>
+        document.getElementById('navbar-styles').textContent = navbarStyles;
+    </script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+        }
+        #app {
+            min-height: 100vh;
+        }
+        .main-container {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .page-header {
+            background: #fff;
+            padding: 20px 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #303133;
+        }
+        .providers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        .provider-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+        .provider-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        }
+        .provider-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            position: relative;
+        }
+        .provider-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .provider-type {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .provider-actions {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+        }
+        .provider-body {
+            padding: 20px;
+        }
+        .provider-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .provider-info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #909399;
+            font-size: 14px;
+        }
+        .info-value {
+            color: #303133;
+            font-size: 14px;
+            font-weight: 500;
+            max-width: 60%;
+            text-align: right;
+            word-break: break-all;
+        }
+        .search-keywords-preview {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f5f7fa;
+            border-radius: 4px;
+        }
+        .keywords-title {
+            font-size: 13px;
+            color: #606266;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .keyword-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 4px;
+            background: #ecf5ff;
+            color: #409eff;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+        .custom-keywords-section {
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <nav-bar active-page="providers"></nav-bar>
+
+        <div class="main-container">
+            <div class="page-header">
+                <div class="page-title">AI 供应商管理</div>
+                <el-button type="primary" icon="Plus" @click="showAddDialog">新增供应商</el-button>
+            </div>
+
+            <div class="providers-grid" v-loading="loading">
+                <div v-for="(provider, index) in providers" :key="index" class="provider-card">
+                    <div class="provider-header">
+                        <div class="provider-name">{{ provider.name || '未命名供应商' }}</div>
+                        <div class="provider-type">{{ getProviderTypeLabel(provider.type) }}</div>
+                        <div class="provider-actions">
+                            <el-button
+                                type="primary"
+                                size="small"
+                                icon="DocumentCopy"
+                                circle
+                                @click="copyProvider(provider)"
+                                title="复制供应商"
+                            ></el-button>
+                            <el-button
+                                type="info"
+                                size="small"
+                                icon="Edit"
+                                circle
+                                @click="editProvider(index, provider)"
+                            ></el-button>
+                            <el-button
+                                type="danger"
+                                size="small"
+                                icon="Delete"
+                                circle
+                                @click="deleteProvider(index)"
+                            ></el-button>
+                        </div>
+                    </div>
+                    <div class="provider-body">
+                        <div class="provider-info-row">
+                            <span class="info-label">检查模型</span>
+                            <span class="info-value">{{ provider.check_model || '-' }}</span>
+                        </div>
+                        <div class="provider-info-row" v-if="provider.type === 'gemini'">
+                            <span class="info-label">API Endpoint</span>
+                            <span class="info-value">{{ provider.api_endpoint || '-' }}</span>
+                        </div>
+                        <div class="provider-info-row" v-if="provider.type === 'openai_style'">
+                            <span class="info-label">API Base URL</span>
+                            <span class="info-value">{{ provider.api_base_url || '-' }}</span>
+                        </div>
+                        <div class="provider-info-row">
+                            <span class="info-label">GPT Load 分组</span>
+                            <span class="info-value">{{ provider.gpt_load_group_name || '未配置' }}</span>
+                        </div>
+                        <div class="provider-info-row">
+                            <span class="info-label">密钥模式</span>
+                            <span class="info-value">{{ (provider.key_patterns || [])[0] || '-' }}</span>
+                        </div>
+                        <div class="search-keywords-preview">
+                            <div class="keywords-title">🔍 搜索关键字预览</div>
+                            <div>
+                                <span v-for="keyword in generateSearchKeywords(provider)" :key="keyword" class="keyword-tag">
+                                    {{ keyword }}
+                                </span>
+                            </div>
+                            <div class="custom-keywords-section" v-if="provider.custom_keywords && provider.custom_keywords.length > 0">
+                                <div class="keywords-title" style="margin-top: 8px;">✨ 自定义关键字</div>
+                                <div>
+                                    <span v-for="keyword in provider.custom_keywords" :key="keyword" class="keyword-tag" style="background: #fff0e6; color: #e6a23c;">
+                                        {{ keyword }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编辑/新增对话框 -->
+            <el-dialog
+                v-model="dialogVisible"
+                :title="dialogMode === 'add' ? '新增供应商' : '编辑供应商'"
+                width="700px"
+                @close="resetDialog"
+            >
+                <el-form :model="currentProvider" label-width="150px">
+                    <el-form-item label="供应商名称">
+                        <el-input v-model="currentProvider.name" placeholder="例如: gemini"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="供应商类型">
+                        <el-select v-model="currentProvider.type">
+                            <el-option label="Gemini" value="gemini"></el-option>
+                            <el-option label="OpenAI Style" value="openai_style"></el-option>
+                        </el-select>
+                    </el-form-item>
+
+                    <el-form-item label="检查模型">
+                        <el-input v-model="currentProvider.check_model" placeholder="例如: gemini-2.0-flash-exp"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="API Endpoint" v-if="currentProvider.type === 'gemini'">
+                        <el-input v-model="currentProvider.api_endpoint" placeholder="generativelanguage.googleapis.com"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="API Base URL" v-if="currentProvider.type === 'openai_style'">
+                        <el-input v-model="currentProvider.api_base_url" placeholder="https://api.openai.com/v1"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="密钥正则表达式">
+                        <el-input v-model="currentProvider.key_patterns[0]" placeholder="AIzaSy[A-Za-z0-9\\-_]{33}">
+                            <template #append>
+                                <el-button @click="showPatternHelp">帮助</el-button>
+                            </template>
+                        </el-input>
+                        <small style="color: #909399;">注意：双斜杠需要转义为四个斜杠</small>
+                    </el-form-item>
+
+                    <el-form-item label="GPT Load 分组">
+                        <el-input v-model="currentProvider.gpt_load_group_name" placeholder="例如: gemini_daye"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="自定义搜索关键字">
+                        <el-tag
+                            v-for="tag in currentProvider.custom_keywords"
+                            :key="tag"
+                            closable
+                            @close="removeCustomKeyword(tag)"
+                            style="margin: 4px;"
+                        >
+                            {{ tag }}
+                        </el-tag>
+                        <el-input
+                            v-if="customKeywordInputVisible"
+                            ref="customKeywordInput"
+                            v-model="customKeywordInputValue"
+                            size="small"
+                            style="width: 150px; margin-left: 8px;"
+                            @keyup.enter="handleCustomKeywordConfirm"
+                            @blur="handleCustomKeywordConfirm"
+                        />
+                        <el-button v-else size="small" @click="showCustomKeywordInput" style="margin-left: 8px;">
+                            + 添加关键字
+                        </el-button>
+                        <div style="margin-top: 8px;">
+                            <small style="color: #909399;">自定义关键字将在预设关键字之后搜索</small>
+                        </div>
+                    </el-form-item>
+
+                    <el-form-item label="跳过 AI 分析">
+                        <el-switch v-model="currentProvider.skip_ai_analysis"></el-switch>
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <el-button @click="dialogVisible = false">取消</el-button>
+                    <el-button type="primary" @click="saveProvider">保存</el-button>
+                </template>
+            </el-dialog>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, nextTick } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    providers: [],
+                    loading: false,
+                    dialogVisible: false,
+                    dialogMode: 'add', // 'add' or 'edit'
+                    editIndex: -1,
+                    currentProvider: this.getEmptyProvider(),
+                    customKeywordInputVisible: false,
+                    customKeywordInputValue: ''
+                };
+            },
+            mounted() {
+                this.checkAuth();
+                this.loadProviders();
+            },
+            methods: {
+                checkAuth() {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) {
+                        window.location.href = '/login';
+                    }
+                },
+                getEmptyProvider() {
+                    return {
+                        name: '',
+                        type: 'gemini',
+                        check_model: '',
+                        api_endpoint: 'generativelanguage.googleapis.com',
+                        api_base_url: '',
+                        key_patterns: [''],
+                        gpt_load_group_name: '',
+                        skip_ai_analysis: false,
+                        custom_keywords: []
+                    };
+                },
+                async loadProviders() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/ai_providers', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        if (response.ok) {
+                            this.providers = await response.json();
+                            // 确保每个供应商都有 custom_keywords 数组
+                            this.providers = this.providers.map(p => ({
+                                ...p,
+                                custom_keywords: p.custom_keywords || []
+                            }));
+                        }
+                    } catch (error) {
+                        ElMessage.error('加载供应商列表失败');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                getProviderTypeLabel(type) {
+                    const labels = {
+                        'gemini': 'Google Gemini',
+                        'openai_style': 'OpenAI Compatible'
+                    };
+                    return labels[type] || type;
+                },
+                generateSearchKeywords(provider) {
+                    // 模拟生成搜索关键字（基于代码逻辑）
+                    const pattern = (provider.key_patterns || [])[0] || '';
+                    let prefix = '';
+
+                    if (pattern.startsWith('AIzaSy')) {
+                        prefix = 'AIzaSy';
+                    } else if (pattern.startsWith('sk-')) {
+                        prefix = 'sk-';
+                    } else if (pattern.startsWith('csk-')) {
+                        prefix = 'csk-';
+                    } else {
+                        const match = pattern.match(/^([A-Za-z0-9\-_]{3,10})/);
+                        if (match) {
+                            prefix = match[1];
+                        }
+                    }
+
+                    if (!prefix) return [];
+
+                    const providerName = (provider.name || '').toUpperCase();
+                    const languages = ['python', 'javascript'];
+
+                    return languages.map(lang => `"${providerName}_API_KEY" = "${prefix}" language:${lang}`);
+                },
+                showAddDialog() {
+                    this.dialogMode = 'add';
+                    this.currentProvider = this.getEmptyProvider();
+                    this.dialogVisible = true;
+                },
+                editProvider(index, provider) {
+                    this.dialogMode = 'edit';
+                    this.editIndex = index;
+                    this.currentProvider = JSON.parse(JSON.stringify(provider));
+                    // 确保有 custom_keywords 数组
+                    if (!this.currentProvider.custom_keywords) {
+                        this.currentProvider.custom_keywords = [];
+                    }
+                    if (!this.currentProvider.key_patterns) {
+                        this.currentProvider.key_patterns = [''];
+                    }
+                    this.dialogVisible = true;
+                },
+                async copyProvider(provider) {
+                    this.dialogMode = 'add';
+                    const copied = JSON.parse(JSON.stringify(provider));
+                    copied.name = copied.name + '_copy';
+                    this.currentProvider = copied;
+                    this.dialogVisible = true;
+                    ElMessage.success('已复制供应商配置，请修改名称后保存');
+                },
+                async deleteProvider(index) {
+                    try {
+                        await ElMessageBox.confirm('确定要删除这个供应商吗？', '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const newProviders = this.providers.filter((_, i) => i !== index);
+                        await this.saveAllProviders(newProviders);
+                        ElMessage.success('删除成功');
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除失败');
+                        }
+                    }
+                },
+                async saveProvider() {
+                    if (!this.currentProvider.name) {
+                        ElMessage.warning('请填写供应商名称');
+                        return;
+                    }
+
+                    if (!this.currentProvider.key_patterns[0]) {
+                        ElMessage.warning('请填写密钥正则表达式');
+                        return;
+                    }
+
+                    let newProviders;
+                    if (this.dialogMode === 'add') {
+                        newProviders = [...this.providers, this.currentProvider];
+                    } else {
+                        newProviders = this.providers.map((p, i) =>
+                            i === this.editIndex ? this.currentProvider : p
+                        );
+                    }
+
+                    await this.saveAllProviders(newProviders);
+                    this.dialogVisible = false;
+                    ElMessage.success(this.dialogMode === 'add' ? '新增成功' : '保存成功');
+                },
+                async saveAllProviders(providers) {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/api/config/ai_providers', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(providers)
+                        });
+
+                        if (response.ok) {
+                            await this.loadProviders();
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        ElMessage.error('保存失败: ' + error.message);
+                        throw error;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                resetDialog() {
+                    this.currentProvider = this.getEmptyProvider();
+                    this.editIndex = -1;
+                    this.customKeywordInputVisible = false;
+                    this.customKeywordInputValue = '';
+                },
+                showPatternHelp() {
+                    ElMessageBox.alert(
+                        '常用密钥模式示例:\n\n' +
+                        'Gemini: AIzaSy[A-Za-z0-9\\\\-_]{33}\n' +
+                        'OpenAI: sk-[A-Za-z0-9]{20,}\n' +
+                        'OpenRouter: sk-or-v1-[A-Za-z0-9]{64}\n' +
+                        'Cerebras: csk-[A-Za-z0-9]+\n\n' +
+                        '注意：正则表达式中的反斜杠需要转义（用四个反斜杠）',
+                        '密钥模式帮助',
+                        { confirmButtonText: '知道了' }
+                    );
+                },
+                showCustomKeywordInput() {
+                    this.customKeywordInputVisible = true;
+                    nextTick(() => {
+                        this.$refs.customKeywordInput.focus();
+                    });
+                },
+                handleCustomKeywordConfirm() {
+                    const value = this.customKeywordInputValue.trim();
+                    if (value && !this.currentProvider.custom_keywords.includes(value)) {
+                        this.currentProvider.custom_keywords.push(value);
+                    }
+                    this.customKeywordInputVisible = false;
+                    this.customKeywordInputValue = '';
+                },
+                removeCustomKeyword(tag) {
+                    this.currentProvider.custom_keywords = this.currentProvider.custom_keywords.filter(k => k !== tag);
+                }
+            },
+            components: {
+                'nav-bar': NavBar
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

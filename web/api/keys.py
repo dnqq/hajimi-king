@@ -12,6 +12,7 @@ from web.models import APIKey
 from web.schemas import APIKeyListItem, APIKeyResponse, APIKeyUpdate, PaginatedResponse, BatchUpdateProviderRequest
 from utils.crypto import key_encryption
 from common.Logger import logger
+from utils.time_utils import now_shanghai
 
 router = APIRouter()
 
@@ -288,7 +289,7 @@ async def batch_revalidate(key_ids: List[int], db: Session = Depends(get_db)):
                 key_obj.status = 'invalid'
                 fail_count += 1
 
-            key_obj.last_validated_at = datetime.utcnow()
+            key_obj.last_validated_at = now_shanghai().replace(tzinfo=None)
 
         except Exception as e:
             logger.error(f"Failed to revalidate key {key_obj.id}: {e}")
