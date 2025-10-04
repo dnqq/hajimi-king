@@ -142,6 +142,16 @@
     justify-content: center;
 }
 
+/* 链接样式按钮 - 危险操作样式优化 */
+.el-button.is-link.el-button--danger {
+    color: #f56c6c;
+}
+
+.el-button.is-link.el-button--danger:hover {
+    color: #f56c6c;
+    background-color: #fef0f0;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
     .table-actions {

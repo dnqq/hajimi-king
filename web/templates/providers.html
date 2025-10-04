@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI供应商管理 - 野王</title>
+    <title>野王</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link rel="stylesheet" href="/static/css/table.css">
     <link rel="stylesheet" href="/static/css/vendor/element-plus.css">
@@ -330,7 +330,7 @@
                 </div>
 
                 <el-table :data="filteredProviders" v-loading="loading" style="width: 100%">
-                    <el-table-column label="供应商" width="280">
+                    <el-table-column label="供应商" min-width="250">
                         <template #default="{ row }">
                             <div class="provider-name-cell">
                                 <div class="provider-avatar">{{ row.name.substring(0, 2).toUpperCase() }}</div>
@@ -342,7 +342,7 @@
                         </template>
                     </el-table-column>
 
-                    <el-table-column label="类型" width="160">
+                    <el-table-column label="类型" width="140">
                         <template #default="{ row }">
                             <div :class="['type-badge', row.type === 'gemini' ? 'gemini' : 'openai']">
                                 <span v-if="row.type === 'gemini'">🔮</span>
@@ -363,7 +363,7 @@
                         </template>
                     </el-table-column>
 
-                    <el-table-column label="GPT Load" width="140">
+                    <el-table-column label="GPT Load" min-width="140">
                         <template #default="{ row }">
                             <el-tag v-if="row.gpt_load_group_name" size="small" effect="plain">
                                 {{ row.gpt_load_group_name }}
@@ -434,16 +434,15 @@
                             <!-- 添加新关键字 -->
                             <div class="custom-keyword-input">
                                 <el-input
-                                    v-model="newKeyword"
-                                    placeholder="输入新关键字后按回车添加"
-                                    @keyup.enter="addCustomKeyword"
-                                >
-                                    <template #append>
-                                        <el-button @click="addCustomKeyword">
-                                            <el-icon><Plus /></el-icon>
-                                        </el-button>
-                                    </template>
-                                </el-input>
+                                    v-model="newKeywordsText"
+                                    type="textarea"
+                                    :rows="6"
+                                    placeholder="每行输入一个关键字"
+                                ></el-input>
+                                <el-button @click="addCustomKeywordsFromText" type="primary" style="margin-top: 12px; width: 100%;">
+                                    <el-icon><Plus /></el-icon>
+                                    <span style="margin-left: 8px;">批量添加关键字</span>
+                                </el-button>
                             </div>
                         </div>
                     </div>
@@ -576,7 +575,8 @@
                     selectedProviderIndex: -1,
                     presetKeywords: [],
                     editingCustomKeywords: [],
-                    newKeyword: ''
+                    newKeyword: '',
+                    newKeywordsText: ''
                 };
             },
             computed: {
@@ -674,6 +674,7 @@
                     this.presetKeywords = this.generatePresetKeywords(provider);
                     this.editingCustomKeywords = [...(provider.custom_keywords || [])];
                     this.newKeyword = '';
+                    this.newKeywordsText = '';
                     this.keywordsDialogVisible = true;
                 },
                 addCustomKeyword() {
@@ -684,6 +685,32 @@
                         ElMessage.success('已添加关键字');
                     } else if (this.editingCustomKeywords.includes(keyword)) {
                         ElMessage.warning('关键字已存在');
+                    }
+                },
+                addCustomKeywordsFromText() {
+                    const keywords = this.newKeywordsText.split('\n')
+                        .map(k => k.trim())
+                        .filter(k => k.length > 0);
+
+                    let addedCount = 0;
+                    let duplicateCount = 0;
+
+                    keywords.forEach(keyword => {
+                        if (!this.editingCustomKeywords.includes(keyword)) {
+                            this.editingCustomKeywords.push(keyword);
+                            addedCount++;
+                        } else {
+                            duplicateCount++;
+                        }
+                    });
+
+                    if (addedCount > 0) {
+                        ElMessage.success(`成功添加 ${addedCount} 个关键字${duplicateCount > 0 ? `，跳过 ${duplicateCount} 个重复项` : ''}`);
+                        this.newKeywordsText = '';
+                    } else if (duplicateCount > 0) {
+                        ElMessage.warning('所有关键字都已存在');
+                    } else {
+                        ElMessage.warning('请输入关键字');
                     }
                 },
                 removeCustomKeyword(index) {
