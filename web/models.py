@@ -7,7 +7,7 @@ from sqlalchemy.orm import relationship
 from web.database import Base, engine
 
 # 导出供外部使用
-__all__ = ['Base', 'engine', 'APIKey', 'ScannedFile', 'ScanTask', 'SyncLog', 'SystemConfig', 'DailyStat']
+__all__ = ['Base', 'engine', 'APIKey', 'ScannedFile', 'ScanTask', 'SyncLog', 'SystemConfig', 'DailyStat', 'AIProvider']
 
 
 class APIKey(Base):
@@ -172,3 +172,59 @@ class DailyStat(Base):
 
     def __repr__(self):
         return f"<DailyStat(date={self.date}, provider={self.provider})>"
+
+
+class AIProvider(Base):
+    """AI 供应商配置表（独立表，替代 system_config 中的 JSON 存储）"""
+    __tablename__ = "ai_providers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 基本信息
+    name = Column(String(50), unique=True, nullable=False, index=True)  # 供应商名称（唯一）
+    type = Column(String(50), nullable=False)  # gemini, openai_style
+
+    # 模型配置
+    check_model = Column(String(100), nullable=False)  # 验证使用的模型
+    api_endpoint = Column(String(255))  # Gemini: API endpoint
+    api_base_url = Column(String(255))  # OpenAI Style: base URL
+
+    # 密钥匹配
+    key_patterns = Column(JSON, nullable=False)  # 正则表达式列表
+
+    # 同步配置
+    gpt_load_group_name = Column(String(100))  # GPT Load 分组名
+
+    # 功能开关
+    skip_ai_analysis = Column(Boolean, default=False)  # 跳过 AI 分析
+    enabled = Column(Boolean, default=True, index=True)  # 是否启用
+
+    # 自定义搜索关键字
+    custom_keywords = Column(JSON, default=[])  # 自定义搜索关键字列表
+
+    # 排序
+    sort_order = Column(Integer, default=0)  # 显示顺序
+
+    # 时间戳
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<AIProvider(id={self.id}, name={self.name}, type={self.type})>"
+
+    def to_dict(self):
+        """转换为字典格式（兼容旧 API）"""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "check_model": self.check_model,
+            "api_endpoint": self.api_endpoint,
+            "api_base_url": self.api_base_url,
+            "key_patterns": self.key_patterns or [],
+            "gpt_load_group_name": self.gpt_load_group_name,
+            "skip_ai_analysis": self.skip_ai_analysis,
+            "enabled": self.enabled,
+            "custom_keywords": self.custom_keywords or [],
+            "sort_order": self.sort_order,
+        }

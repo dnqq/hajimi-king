@@ -148,9 +148,12 @@ async def get_all_configs(db: Session = Depends(get_db)) -> Dict[str, Any]:
 @router.get("/ai_providers")
 async def get_ai_providers(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """
-    获取 AI 供应商配置
+    获取 AI 供应商配置（从 ai_providers 表读取）
     """
-    return get_config_value(db, "ai_providers", [])
+    from web.models import AIProvider
+
+    providers = db.query(AIProvider).filter(AIProvider.enabled == True).order_by(AIProvider.sort_order).all()
+    return [provider.to_dict() for provider in providers]
 
 
 @router.post("/ai_providers")
@@ -159,17 +162,45 @@ async def update_ai_providers(
     db: Session = Depends(get_db)
 ):
     """
-    更新 AI 供应商配置
+    更新 AI 供应商配置（保存到 ai_providers 表）
     """
-    providers_data = [p.model_dump() for p in providers]
-    set_config_value(db, "ai_providers", providers_data, "AI 供应商配置")
+    from web.models import AIProvider
 
-    # 重新加载配置（热更新）
-    from common.config import config
-    config.reload_config()
+    try:
+        # 删除所有现有供应商
+        db.query(AIProvider).delete()
 
-    logger.info(f"✅ Updated AI providers config: {len(providers_data)} providers (hot reloaded)")
-    return {"success": True, "message": f"Updated {len(providers_data)} providers (hot reloaded)"}
+        # 添加新供应商
+        for idx, provider_config in enumerate(providers):
+            provider_data = provider_config.model_dump()
+            provider = AIProvider(
+                name=provider_data["name"],
+                type=provider_data["type"],
+                check_model=provider_data["check_model"],
+                api_endpoint=provider_data.get("api_endpoint"),
+                api_base_url=provider_data.get("api_base_url"),
+                key_patterns=provider_data["key_patterns"],
+                gpt_load_group_name=provider_data.get("gpt_load_group_name", ""),
+                skip_ai_analysis=provider_data.get("skip_ai_analysis", False),
+                enabled=True,
+                custom_keywords=provider_data.get("custom_keywords", []),
+                sort_order=idx
+            )
+            db.add(provider)
+
+        db.commit()
+
+        # 重新加载配置（热更新）
+        from common.config import config
+        config.reload_config()
+
+        logger.info(f"✅ Updated AI providers: {len(providers)} providers (hot reloaded)")
+        return {"success": True, "message": f"Updated {len(providers)} providers (hot reloaded)"}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Failed to update AI providers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/sync")

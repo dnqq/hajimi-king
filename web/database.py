@@ -53,6 +53,6 @@ def init_db():
     """
     初始化数据库：创建所有表
     """
-    from web.models import APIKey, ScannedFile, ScanTask, SyncLog, SystemConfig, DailyStat
+    from web.models import APIKey, ScannedFile, ScanTask, SyncLog, SystemConfig, DailyStat, AIProvider
     Base.metadata.create_all(bind=engine)
     print(f"✅ Database initialized at: {DATABASE_PATH}")

@@ -66,33 +66,39 @@ class ConfigLoader:
             return value
 
     def get_ai_providers(self) -> List[Dict[str, Any]]:
-        """获取 AI 供应商配置"""
+        """获取 AI 供应商配置（从 ai_providers 表读取）"""
+        try:
+            from web.models import AIProvider
+            db = SessionLocal()
+            try:
+                providers = db.query(AIProvider).filter(AIProvider.enabled == True).order_by(AIProvider.sort_order).all()
+                if providers:
+                    return [provider.to_dict() for provider in providers]
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to load providers from table: {e}")
+
+        # 回退：从 system_config 读取（兼容旧数据）
         providers = self.get_config('ai_providers', 'AI_PROVIDERS_CONFIG', [])
+        if providers:
+            logger.info("📄 Loaded providers from system_config (fallback)")
+            return providers
 
-        # 如果是空列表，返回默认配置
-        if not providers:
-            return [
-                {
-                    "name": "gemini",
-                    "type": "gemini",
-                    "check_model": "gemini-2.5-flash",
-                    "api_endpoint": "generativelanguage.googleapis.com",
-                    "key_patterns": ["AIzaSy[A-Za-z0-9\\\\-_]{33}"],
-                    "gpt_load_group_name": os.getenv("GEMINI_GPT_LOAD_GROUP_NAME", ""),
-                    "skip_ai_analysis": False
-                },
-                {
-                    "name": "openai",
-                    "type": "openai_style",
-                    "check_model": "gpt-3.5-turbo",
-                    "api_base_url": "https://api.openai.com/v1",
-                    "key_patterns": ["sk-[A-Za-z0-9\\\\-_]{20,100}"],
-                    "gpt_load_group_name": os.getenv("OPENAI_GPT_LOAD_GROUP_NAME", ""),
-                    "skip_ai_analysis": False
-                }
-            ]
-
-        return providers
+        # 最终回退：默认配置
+        logger.warning("⚠️ No providers found, using default config")
+        return [
+            {
+                "name": "gemini",
+                "type": "gemini",
+                "check_model": "gemini-2.0-flash-exp",
+                "api_endpoint": "generativelanguage.googleapis.com",
+                "key_patterns": ["AIzaSy[A-Za-z0-9\\\\-_]{33}"],
+                "gpt_load_group_name": "",
+                "skip_ai_analysis": True,
+                "custom_keywords": []
+            }
+        ]
 
     def get_sync_config(self) -> Dict[str, Any]:
         """获取同步配置"""

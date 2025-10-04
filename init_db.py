@@ -10,49 +10,52 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from web.database import init_db, DATABASE_PATH, SessionLocal
-from web.models import SystemConfig
+from web.models import SystemConfig, AIProvider
 from common.Logger import logger
 
 def add_default_providers():
-    """添加默认供应商配置"""
+    """添加默认供应商配置（使用新的 ai_providers 表）"""
     db = SessionLocal()
     try:
-        # 检查是否已有供应商配置
-        existing_config = db.query(SystemConfig).filter(SystemConfig.key == 'ai_providers').first()
+        # 检查是否已有供应商配置（新表）
+        existing_count = db.query(AIProvider).count()
 
-        if existing_config:
-            logger.info("⏩ AI providers config already exists, skipping default setup")
+        if existing_count > 0:
+            logger.info(f"⏩ AI providers table already has {existing_count} providers, skipping default setup")
             return
 
         # 默认供应商配置
         default_providers = [
-            {
-                "name": "gemini",
-                "type": "gemini",
-                "check_model": "gemini-2.0-flash-exp",
-                "api_endpoint": "generativelanguage.googleapis.com",
-                "key_patterns": ["AIzaSy[A-Za-z0-9\\-_]{33}"],
-                "gpt_load_group_name": "",
-                "skip_ai_analysis": True
-            },
-            {
-                "name": "openai",
-                "type": "openai_style",
-                "check_model": "gpt-3.5-turbo",
-                "api_base_url": "https://api.openai.com/v1",
-                "key_patterns": ["sk-[A-Za-z0-9\\-_]{20,100}"],
-                "gpt_load_group_name": "",
-                "skip_ai_analysis": False
-            }
+            AIProvider(
+                name="gemini",
+                type="gemini",
+                check_model="gemini-2.0-flash-exp",
+                api_endpoint="generativelanguage.googleapis.com",
+                key_patterns=["AIzaSy[A-Za-z0-9\\-_]{33}"],
+                gpt_load_group_name="",
+                skip_ai_analysis=True,
+                enabled=True,
+                custom_keywords=[],
+                sort_order=0
+            ),
+            AIProvider(
+                name="openai",
+                type="openai_style",
+                check_model="gpt-3.5-turbo",
+                api_base_url="https://api.openai.com/v1",
+                key_patterns=["sk-[A-Za-z0-9\\-_]{20,100}"],
+                gpt_load_group_name="",
+                skip_ai_analysis=False,
+                enabled=True,
+                custom_keywords=[],
+                sort_order=1
+            )
         ]
 
         # 保存到数据库
-        config = SystemConfig(
-            key='ai_providers',
-            value=default_providers,
-            description='AI 供应商配置（默认：Gemini + OpenAI）'
-        )
-        db.add(config)
+        for provider in default_providers:
+            db.add(provider)
+
         db.commit()
 
         logger.info("✅ Added default AI providers: Gemini, OpenAI")
