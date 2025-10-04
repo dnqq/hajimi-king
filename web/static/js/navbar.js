@@ -12,7 +12,7 @@ const NavBar = {
             <div class="navbar-content">
                 <div class="navbar-left">
                     <div class="logo">
-                        <img src="/static/images/wolf-logo.svg" class="logo-icon" alt="野王" />
+                        <img src="/static/images/tiger-logo.svg" class="logo-icon" alt="野王" />
                         <span class="logo-text">野王</span>
                     </div>
                     <div class="nav">
