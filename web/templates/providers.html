@@ -250,7 +250,10 @@
                     </el-form-item>
 
                     <el-form-item label="密钥正则表达式">
-                        <el-input v-model="currentProvider.key_patterns[0]" placeholder="AIzaSy[A-Za-z0-9\\-_]{33}">
+                        <el-input
+                            :model-value="currentProvider.key_patterns && currentProvider.key_patterns[0] || ''"
+                            @update:model-value="val => { if (!currentProvider.key_patterns) currentProvider.key_patterns = []; currentProvider.key_patterns[0] = val }"
+                            placeholder="AIzaSy[A-Za-z0-9\\-_]{33}">
                             <template #append>
                                 <el-button @click="showPatternHelp">帮助</el-button>
                             </template>
@@ -274,13 +277,12 @@
                         </el-tag>
                         <el-input
                             v-if="customKeywordInputVisible"
-                            ref="customKeywordInput"
                             v-model="customKeywordInputValue"
                             size="small"
                             style="width: 150px; margin-left: 8px;"
                             @keyup.enter="handleCustomKeywordConfirm"
                             @blur="handleCustomKeywordConfirm"
-                        />
+                        ></el-input>
                         <el-button v-else size="small" @click="showCustomKeywordInput" style="margin-left: 8px;">
                             + 添加关键字
                         </el-button>
@@ -517,9 +519,6 @@
                 },
                 showCustomKeywordInput() {
                     this.customKeywordInputVisible = true;
-                    nextTick(() => {
-                        this.$refs.customKeywordInput.focus();
-                    });
                 },
                 handleCustomKeywordConfirm() {
                     const value = this.customKeywordInputValue.trim();

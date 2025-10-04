@@ -287,18 +287,24 @@
                     <div class="stat-label">今日新增密钥</div>
                     <div class="stat-value-container">
                         <div class="stat-value" style="color: #409eff;">{{ stats.today_keys || 0 }}</div>
-                        <div style="display: flex; gap: 16px; font-size: 13px; margin-left: auto;">
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <span style="color: #909399;">有效:</span>
-                                <span style="color: #67c23a; font-weight: 600;">{{ stats.today_valid_keys || 0 }}</span>
+                        <div class="stat-main-trend">
+                            <div class="trend-item">
+                                <span class="trend-label">有效</span>
+                                <span class="trend-value up">
+                                    <span>{{ stats.today_valid_keys || 0 }}</span>
+                                </span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <span style="color: #909399;">限流:</span>
-                                <span style="color: #e6a23c; font-weight: 600;">{{ stats.today_rate_limited_keys || 0 }}</span>
+                            <div class="trend-item">
+                                <span class="trend-label">限流</span>
+                                <span class="trend-value" style="color: #e6a23c;">
+                                    <span>{{ stats.today_rate_limited_keys || 0 }}</span>
+                                </span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <span style="color: #909399;">无效:</span>
-                                <span style="color: #909399; font-weight: 600;">{{ stats.today_invalid_keys || 0 }}</span>
+                            <div class="trend-item">
+                                <span class="trend-label">无效</span>
+                                <span class="trend-value neutral">
+                                    <span>{{ stats.today_invalid_keys || 0 }}</span>
+                                </span>
                             </div>
                         </div>
                     </div>
